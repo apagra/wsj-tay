@@ -20,6 +20,9 @@ period of what each receiver heard · callsign watch boxes · Hold Rep · one li
 per message instead of duplicate decodes · in-program help (F1) · left click on
 the waterfall sets receive, right click sets transmit.
 
+It also reports itself to PSK Reporter as what it is, rather than as WSJT-X, and
+spots by default on a fresh installation.
+
 `FEATURES.md` describes all of it; `dist/TI-PROSTHESAME.txt` is the same in
 Greek. `BUILD-NOTES.md` has what it took to build this on Windows, traps
 included.

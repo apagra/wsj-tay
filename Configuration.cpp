@@ -2015,7 +2015,11 @@ void Configuration::impl::read_settings ()
 
   monitor_off_at_startup_ = settings_->value ("MonitorOFF", false).toBool ();
   monitor_last_used_ = settings_->value ("MonitorLastUsed", false).toBool ();
-  spot_to_psk_reporter_ = settings_->value ("PSKReporter", false).toBool ();
+  // On for a fresh installation. Spotting costs the operator nothing and the
+  // network only works because people leave it on; upstream ships it off, so
+  // most stations that would happily report never do. Anyone who turns it off
+  // keeps it off - this is the default, not an override.
+  spot_to_psk_reporter_ = settings_->value ("PSKReporter", true).toBool ();
   psk_reporter_band_activity_ = settings_->value ("PSKReporterBandActivity", false).toBool ();
   psk_reporter_tcpip_ = settings_->value ("PSKReporterTCPIP", false).toBool ();
   id_after_73_ = settings_->value ("After73", false).toBool ();

@@ -524,7 +524,11 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
         m_config.udp_server_name (), m_config.udp_server_port (),
         m_config.udp_interface_names (), m_config.udp_TTL (),
         this}},
-  m_psk_Reporter {&m_config, QString {"WSJT-X v" + version () + " " + m_revision}.simplified ()},
+  // What the spotting network is told this program is. Upstream's line named
+  // the base project and its version, which WSJT-Z left alone too - so every
+  // station running either fork has been counted on PSK Reporter as WSJT-X.
+  // This says what it actually is.
+  m_psk_Reporter {&m_config, QString {"WSJ-TAY " + wsj_tay_version ()}.simplified ()},
   m_block_udp_status_updates {false}
 {
   ui->setupUi(this);

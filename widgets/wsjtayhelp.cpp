@@ -252,6 +252,12 @@ still appears in both panes. That is the point of them.</p>
 <li><b>Tools &gt; Windows sound settings</b> opens the Windows Sound dialog
 straight on the Recording or the Playback tab, so the level of a card can be set
 without hunting through Windows' own settings. MSHV does exactly the same.</li>
+<li><b>PSK Reporter is told what this actually is.</b> Upstream's line named the
+base project and its version, and WSJT-Z left it alone, so every station running
+either fork has been counted on the network as WSJT-X. This reports
+<tt>WSJ-TAY beta N</tt>. Spotting is also on by default for a fresh
+installation - it costs you nothing and the network only works because people
+leave it on. Switch it off and it stays off.</li>
 <li>The program is named <tt>wsj-tay</tt>, so it has its own settings, its own
 lock file and its own decoder shared memory, and never disturbs a stock WSJT-X,
 JTDX, MSHV or WSJT-Z on the same machine. No <tt>--rig-name</tt> needed.</li>

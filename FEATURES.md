@@ -247,6 +247,12 @@ What stayed is what the licence and good manners ask for:
   SQ9FVE and K1JT lives in Help → About WSJ-TAY, Help → About WSJT-Z and the
   `AUTHORS` file, which is where the licence wants it rather than in the title
   bar.
+- **PSK Reporter is told what this actually is.** Upstream's line named the base
+  project and its version, and WSJT-Z left it alone, so every station running
+  either fork has been counted on the network as WSJT-X. This reports
+  `WSJ-TAY beta N`. Spotting is also **on by default** for a fresh installation:
+  it costs the operator nothing and the network only works because people leave
+  it on. Anyone who switches it off keeps it off.
 - The application is named `wsj-tay`, so it has its own settings, its own lock
   file and its own decoder shared memory, and never disturbs the stock WSJT-X,
   JTDX, MSHV or WSJT-Z installs on the same machine. No `--rig-name` needed.
