@@ -1,0 +1,119 @@
+// Simple bargraph dB meter
+// Implemented by Edson Pereira PY2SDR
+//
+
+#include "signalmeter.h"
+
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPainter>
+#include <QFontMetrics>
+#include <QDebug>
+
+#include "meterwidget.h"
+
+#include "moc_signalmeter.cpp"
+
+#define MAXDB 90
+
+class Scale final
+  : public QWidget
+{
+public:
+  explicit Scale (QWidget * parent = 0)
+    : QWidget {parent}
+  {
+    setSizePolicy (QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
+  }
+  // Z
+  /*QSize sizeHint () const override
+  {
+    return minimumSizeHint ();
+  }
+
+  QSize minimumSizeHint () const override
+  {
+    //QFontMetrics font_metrics {font (), nullptr};
+    return {tick_length + text_indent , (font_metrics.height () + line_spacing) * range};
+  }*/
+
+protected:
+  void paintEvent (QPaintEvent * event) override
+  {
+    QWidget::paintEvent (event);
+
+    QPainter p {this};
+    auto const& target = contentsRect ();
+    QFontMetrics font_metrics {p.font (), this};
+    auto font_offset = font_metrics.ascent () / 2;
+    p.drawLine (target.left (), target.top () + font_offset, target.left (), target.bottom () - font_offset - font_metrics.descent ());
+    for (int i = 0; i <= range; ++i)
+      {
+        p.save ();
+        p.translate (target.left ()
+                     , target.top () + font_offset + i * (target.height () - font_metrics.ascent () - font_metrics.descent ()) / range);
+        p.drawLine (0, 0, tick_length, 0);
+        // Z
+        /*
+	if((i%2==1)) {
+	  auto text = QString::number ((range - i) * scale);
+	  p.drawText (tick_length + text_indent, font_offset, text);
+	}
+    */
+        p.restore ();
+      }
+  }
+
+private:
+  static int constexpr tick_length {1};
+  static int constexpr text_indent {2};
+  static int constexpr line_spacing {0};
+  static int constexpr range {MAXDB/10};
+  static int constexpr scale {10};
+};
+
+SignalMeter::SignalMeter (QWidget * parent)
+  : QFrame {parent}
+{
+  auto outer_layout = new QVBoxLayout;
+  outer_layout->setSpacing (0);
+
+  auto inner_layout = new QHBoxLayout;
+  inner_layout->setContentsMargins (1, 0, 0, 0);
+  inner_layout->setSpacing (0);
+
+  m_meter = new MeterWidget;
+  m_meter->setSizePolicy (QSizePolicy::Minimum, QSizePolicy::Minimum);
+  inner_layout->addWidget (m_meter);
+
+  m_scale = new Scale;
+  inner_layout->addWidget (m_scale);
+
+  // The unit used to sit in a label of its own beside the number, and the two
+  // together needed more width than a meter standing beside a text pane can
+  // spare - the "dB" ended up sliced in half. It rides with the number now, and
+  // the meter can be as narrow as the bar itself.
+  m_reading = new QLabel(this);
+  m_reading->setAlignment(Qt::AlignCenter);
+  m_reading->setMinimumWidth(QFontMetrics {m_reading->font ()}.horizontalAdvance(QString::number(MAXDB) + " dB"));
+
+  auto bottom_layout = new QHBoxLayout;
+  bottom_layout->setContentsMargins(0, 0, 0, 0);
+  bottom_layout->setSpacing(0);
+  bottom_layout->addWidget(m_reading);
+
+  outer_layout->addLayout (inner_layout);
+  outer_layout->addLayout (bottom_layout);
+  setLayout (outer_layout);
+}
+
+void SignalMeter::setValue(float value, float valueMax)
+{
+  if(value<0) value=0;
+  QFontMetrics font_metrics {m_scale->font (), nullptr};
+  m_meter->setContentsMargins (0, font_metrics.ascent () / 2, 0, font_metrics.ascent () / 2 + font_metrics.descent ());
+  m_meter->setValue(int(value));
+  m_meter->set_sigPeak(valueMax);
+  m_reading->setText(QString::number(int(value+0.5)) + " dB");
+}
