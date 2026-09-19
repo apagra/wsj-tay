@@ -1,5 +1,5 @@
 WSJ-TAY
-Decode two receive sources at once - for example the transceiver and an SDR -
+Decode two receive sources at once - the transceiver and a second receiver -
 each into its own Band Activity pane.
 
 by SV1TAY - sv1tay.com

@@ -16,8 +16,8 @@ Build and deployment notes live in `BUILD-NOTES.md` instead.
 
 ## Two receive sources at once
 
-Upstream decodes one sound card. This fork decodes **two simultaneously** — for
-example the transceiver and an SDR — each into its own Band Activity pane.
+Upstream decodes one sound card. This fork decodes **two simultaneously** — the
+transceiver and a second receiver — each into its own Band Activity pane.
 
 The point is coverage: two receivers on different antennas do not hear the same
 stations. In one measured cycle on 20m: 59 stations, 40 heard by both, 10 only
@@ -151,7 +151,7 @@ sensitivity.
 **It starts at zero and returns to zero when a QSO is logged.** A shift is either
 something Sync worked out for one station or something typed for one signal; left
 in place it pushes everybody else out of the decoder's window and costs decodes
-without saying a word. For a standing delay — an SDR always late by the same
+without saying a word. For a standing delay — a second receiver always late by the same
 amount — use Sync with the callsign box empty, which measures it afresh each time
 instead of trusting yesterday's number.
 

@@ -1310,7 +1310,7 @@ QLabel[oob=&quot;true&quot;] {
             <item row="0" column="1">
              <widget class="QDoubleSpinBox" name="sbInput2Offset">
               <property name="toolTip">
-               <string>Time offset of the second source, in seconds. An SDR reaching the program through a browser and a virtual cable arrives late by its buffering; correcting that realigns its audio with the transmission window and recovers the sensitivity lost to the delay.</string>
+               <string>Time offset of the second source, in seconds. A second receiver reaching the program through a browser and a virtual cable arrives late by its buffering; correcting that realigns its audio with the transmission window and recovers the sensitivity lost to the delay.</string>
               </property>
               <property name="suffix">
                <string> s</string>
@@ -1348,7 +1348,7 @@ QLabel[oob=&quot;true&quot;] {
                <string>Sync</string>
               </property>
               <property name="toolTip">
-               <string>Steer the second source&apos;s time offset automatically. With a callsign above, it aligns to that station, for digging out one signal whose timing sits away from nominal. With the field empty, it aligns to the first source, correcting the delay an SDR picks up through a browser and a virtual cable. Affects only how the second source is decoded, never transmit timing, which stays on UTC.</string>
+               <string>Steer the second source&apos;s time offset automatically. With a callsign above, it aligns to that station, for digging out one signal whose timing sits away from nominal. With the field empty, it aligns to the first source, correcting the delay a second receiver picks up through a browser and a virtual cable. Affects only how the second source is decoded, never transmit timing, which stays on UTC.</string>
               </property>
              </widget>
             </item>

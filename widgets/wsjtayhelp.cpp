@@ -16,8 +16,8 @@ namespace
   char const * const help_html = R"HELP(
 <h2>WSJ-TAY %1</h2>
 
-<p>WSJ-TAY decodes <b>two receive sources at the same time</b> &mdash; a
-transceiver and an SDR, for instance &mdash; each into its own Band Activity
+<p>WSJ-TAY decodes <b>two receive sources at the same time</b> &mdash; the
+transceiver and a second receiver &mdash; each into its own Band Activity
 pane.</p>
 
 <p>It is a fork of <b>WSJT-Z</b> by SQ9FVE, which is itself a fork of
@@ -170,8 +170,8 @@ sensitivity.</p>
 <p><b>It starts at zero and returns to zero when a QSO is logged.</b> A shift is
 either something Sync worked out for one station or something typed for one
 signal; left in place afterwards it pushes everybody else out of the decoder's
-window and costs decodes without ever saying so. To hold a standing delay - an
-SDR that is always late by the same amount - use Sync with the callsign box
+window and costs decodes without ever saying so. To hold a standing delay - a
+second receiver that is always late by the same amount - use Sync with the callsign box
 empty, which measures it afresh instead of trusting a number from yesterday.</p>
 
 <p><b>call</b> &mdash; the callsign for Sync to steer onto. Double clicking a
@@ -382,7 +382,7 @@ you owe them the source as well. See <i>Help &gt; About WSJ-TAY</i>.</small></p>
 <h2>WSJ-TAY %1</h2>
 
 <p>Το WSJ-TAY αποκωδικοποιεί <b>δύο πηγές ήχου ταυτόχρονα</b> &mdash; τον
-πομποδέκτη και ένα SDR, ας πούμε &mdash; η καθεμία στο δικό της παράθυρο.</p>
+πομποδέκτη και έναν δεύτερο δέκτη &mdash; η καθεμία στο δικό της παράθυρο.</p>
 
 <p>Είναι παραλλαγή του <b>WSJT-Z</b> του SQ9FVE, που με τη σειρά του είναι
 παραλλαγή του <b>WSJT-X</b> του K1JT και της ομάδας WSJT. Ό,τι κάνουν εκείνα τα
