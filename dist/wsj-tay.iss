@@ -8,7 +8,7 @@
 ; installer cannot leave that behind: everything it writes, it removes.
 
 #define AppName    "WSJ-TAY"
-#define AppVersion "beta 8"
+#define AppVersion "v1.0.0"
 #define AppPub     "SV1TAY"
 #define AppURL     "https://sv1tay.com"
 #define AppExe     "wsj-tay.exe"
@@ -23,7 +23,7 @@ AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPub}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
-VersionInfoVersion=0.9.1.0
+VersionInfoVersion=1.0.0.0
 VersionInfoDescription={#AppName} - decode two receive sources at once
 
 ; lowest = install for this user only, no UAC prompt. {autopf} then resolves to
@@ -39,7 +39,7 @@ LicenseFile=stage\WSJ-TAY\COPYING.txt
 InfoBeforeFile=stage\WSJ-TAY\README.txt
 
 OutputDir=.
-OutputBaseFilename={#AppName}-beta8-setup
+OutputBaseFilename={#AppName}-v1.0.0-setup
 SetupIconFile=..\icons\windows-icons\wsj-tay.ico
 UninstallDisplayIcon={app}\bin\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}

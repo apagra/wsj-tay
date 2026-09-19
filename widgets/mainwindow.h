@@ -632,6 +632,19 @@ private:
   // Processor load of the machine and memory held by this program and both
   // decoders, refreshed on a slow timer of its own.
   void updateResourceUsage ();
+  // Windows shuffles its audio devices when the default one changes, and the
+  // transmit stream can be left pointing at the wrong endpoint. This notices
+  // and reopens it, so changing the default no longer means restarting.
+  // The second source: its card, whether it runs at all, and the window
+  // dressed to match. Empty Input 2 mirrors Input 1 once an offset is set.
+  QAudioDeviceInfo secondSourceDevice () const;
+  void applySecondSource ();
+  void checkAudioDevicesChanged ();
+  void checkSecondDecoder ();
+  bool secondSourceActive () const;
+  // Re-open the audio on the cards the settings name, looked up afresh. Only
+  // the side asked for: a capture stream reopened mid-period costs decodes.
+  void reopenAudioDevices (bool output, bool inputs);
   // The station being worked, and its grid, are marked in every Band Activity
   // pane. Upstream marked the first one only, which with two panes reads as
   // two different stations.
@@ -900,6 +913,11 @@ private:
   // jt9 is handed work through its shared memory and must not be given more
   // until it reports finished, which is what decodeBusy does for the first one
   bool m_decoder2Busy {false};
+  // When that work was handed over. A decode that never reports back would
+  // otherwise leave the flag above raised for the rest of the session, and the
+  // second source goes quiet with nothing to show for it.
+  qint64 m_decoder2BusySince {0};
+  int m_decoder2Stalls {0};     // times it had to be prodded back to life
   bool m_level2Fresh {false};   // audio arrived from source 2 since last check
   float m_level2Db {0.f};       // last level from source 2, for the beta log
   int m_in2SilentPeriods {0};   // periods with audio but no decodes from source 2
@@ -1088,6 +1106,14 @@ private:
   QProgressDialog m_optimizingProgress;
   QTimer m_heartbeat;
   QTimer m_resourceTimer;     // drives the CPU and memory readout
+  QTimer m_audioWatchTimer;   // watches for audio devices coming and going
+  QTimer m_decoder2WatchTimer;// watches for a second decoder that stopped answering
+  QString m_audioOutputFingerprint;
+  QString m_audioInputFingerprint;
+  QString m_secondSourceOpen;   // card the second capture is on, empty when off
+  // Where the second source heard each message this period, so that at the end
+  // of it the ones the first source missed can be marked on the waterfall.
+  QHash<QString, int> m_keys2Freq;
   MessageClient * m_messageClient;
   MessageServer * m_udp_server;  // UDP server for receiving Configure messages on port 2237
   PSKReporter m_psk_Reporter;

@@ -1506,6 +1506,22 @@ Configuration::impl::impl (Configuration * self, QNetworkAccessManager * network
   connect (ui_->sound_input_2_combo_box, &LazyFillComboBox::about_to_show_popup, [this] () {
       QGuiApplication::setOverrideCursor (QCursor {Qt::WaitCursor});
       load_audio_devices (QAudio::AudioInput, ui_->sound_input_2_combo_box, &next_audio_input_2_device_, true);
+      // The card feeding the first source is offered, but labelled. Choosing it
+      // means one aerial decoded twice, which is worth nothing on its own and
+      // worth a lot with a time offset on Input 2: the same audio searched in a
+      // different window digs out stations whose clocks are off. Leaving Input 2
+      // on None does the same thing on demand - see applySecondSource ().
+      for (int i = 0; i < ui_->sound_input_2_combo_box->count (); ++i)
+        {
+          auto const& dev = ui_->sound_input_2_combo_box->itemData (i)
+              .value<audio_info_type> ().first;
+          if (!dev.isNull () && dev == next_audio_input_device_)
+            {
+              ui_->sound_input_2_combo_box->setItemData (
+                  i, tr ("Same card as Input 1 - only useful with a time offset"),
+                  Qt::ToolTipRole);
+            }
+        }
       update_audio_channels (ui_->sound_input_2_combo_box, ui_->sound_input_2_combo_box->currentIndex (), ui_->sound_input_2_channel_combo_box, false);
       ui_->sound_input_2_channel_combo_box->setCurrentIndex (next_audio_input_2_channel_);
       QGuiApplication::restoreOverrideCursor ();
@@ -2795,6 +2811,19 @@ void Configuration::impl::accept ()
 
   {
     auto const& selected_device = ui_->sound_input_2_combo_box->currentData ().value<audio_info_type> ().first;
+    // Said once, then left alone: the same card on both inputs is a real
+    // technique, not a mistake, but only with a time offset on Input 2.
+    if (!selected_device.isNull () && selected_device == next_audio_input_device_
+        && selected_device != next_audio_input_2_device_)
+      {
+        MessageBox::information_message (
+            this, tr ("Input 2 is the same card as Input 1"),
+            tr ("Both decoders will work on the same aerial, at double the "
+                "processor and memory.\n\nThat is worth it only with a time "
+                "offset on Input 2: the same audio searched in a different "
+                "window digs out stations whose clocks are off. With no offset "
+                "you are decoding the same thing twice."));
+      }
     if (selected_device != next_audio_input_2_device_)
       {
         next_audio_input_2_device_ = selected_device;

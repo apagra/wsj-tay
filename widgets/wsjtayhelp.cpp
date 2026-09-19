@@ -24,7 +24,7 @@ pane.</p>
 <b>WSJT-X</b> by K1JT and the WSJT Development Group. Everything those programs
 do &mdash; the modes themselves, Auto CQ, Auto Call, Pounce, the filtering tabs,
 band hopping, QRZ lookup, the alerts &mdash; is theirs, and is documented in
-<i>Help &gt; WSJT-X User Guide</i> and <i>Help &gt; About WSJT-Z</i>. What
+<i>Help &gt; WSJT-X User Guide</i> and in WSJT-Z's own documentation. What
 follows is only what this fork adds.</p>
 
 <hr />
@@ -39,9 +39,44 @@ both, 10 only by the transceiver, 9 only by the second receiver.</p>
 
 <p><b>Settings &gt; Audio &gt; Input 2</b> selects the second sound card, with
 its own Mono/Left/Right. Its list begins with <b>None</b>, which is the way back
-to a single receiver: pick it and the second decoder stops, the second pane
-empties and everything belonging to that source greys out. Left on None, the
-program behaves exactly like WSJT-Z.</p>
+to a single receiver: the second decoder stops, its pane closes and everything
+belonging to that source greys out.</p>
+
+<hr />
+
+<h3>One receiver, two time windows</h3>
+
+<p>With <b>Input 2 on None</b>, setting the <b>offset</b> to anything but zero
+turns the second decoder on anyway, listening to <b>the same card as Input 1</b>.
+The pane then says <i>Input 2 (Input 1, shifted)</i>.</p>
+
+<p>The point is stations whose clocks are wrong. FT8 decodes a window of time,
+and a station that transmits half a second late falls outside it - the first
+decoder never sees them, and nor does anyone else running things normally. The
+second decoder, fed the same audio but shifted, searches where those stations
+actually are. You keep the straight view in the first pane and the shifted one
+beside it, instead of choosing between them.</p>
+
+<p>Set the offset back to zero and the second decoder stops. That is deliberate:
+mirroring with no offset decodes the same aerial twice for nothing, at double
+the processor and memory, and the handful of decodes that differ between the two
+panes differ only because the two streams began on different samples - noise
+around one signal, not a second opinion.</p>
+
+<p><b>Logging a QSO sets the offset to zero</b>, which in this mode means the
+mirror stops with it. That is the same rule as everywhere else - a shift belongs
+to the moment it was set for, not to the rest of the day - so after working one
+of these off-timing stations, type the offset again to carry on hunting. The
+first pane never stops, whatever the offset does.</p>
+
+<p>The shift belongs to the second source and always will. Input 1 sets the
+timing of everything - the waterfall, the decode cycle, the DT column - so
+shifting it would shift the lot, and you would dig out the odd station by losing
+everyone who has their clock right.</p>
+
+<p>Choosing the first card explicitly in the Input 2 list does the same thing,
+except it stays on whatever the offset says. The program says so once, when you
+pick it.</p>
 
 <p>Both receivers should be on the <b>same frequency</b>. The two decoders share
 every setting except their audio, so decodes from the second source are
@@ -119,6 +154,10 @@ column of decodes is not information, but this panel stays: the watch boxes and
 the readout have nothing to do with the second source, and the controls that do
 are <b>greyed out rather than hidden</b>. A control that vanishes leaves you
 hunting for what you broke, and the room is there either way.</p>
+
+<p>The <b>offset</b> is the exception: it stays usable, because it is the switch
+that starts the second decoder on the first card - see <i>One receiver, two time
+windows</i> above.</p>
 
 <p><b>Mute In 2</b> &mdash; stops the second source being decoded, without
 touching the configuration. For comparing with and without it.</p>
@@ -220,13 +259,54 @@ title bar to move it above or below the text panes.</p>
 waterfall, but sitting where it did it read as a close button on a dock that
 deliberately cannot be closed.</p>
 
-<p>It shows the first source only.</p>
+<p>It shows the first source only &mdash; but not quite. <b>Green marks</b> show
+where the <b>second</b> receiver heard a station that <b>the first one did
+not</b>: on the frequency scale for the period just decoded, and painted into
+the waterfall itself, where they travel down with the picture and leave a short
+green column under the period they belong to.</p>
+
+<p>They are there because of a trap: you choose where to transmit by eye, from
+this waterfall, and a station only the second receiver hears leaves no trace on
+it. Answer one of those and your signal can land straight on top of somebody you
+cannot see. The green marks are that somebody.</p>
+
+<p>The <b>In 2 graph</b> box beside <i>Controls</i>, at the top of the waterfall,
+turns the marks off and on; the setting is remembered.</p>
+
+<p>Only the blind spot is marked, never the whole of the second receiver's
+traffic. Marking everything filled the scale with ticks and said no more than
+"there is FT8 here", which the waterfall says already.</p>
+
+<p>Decodes only. Energy that never turns into a decode - a weak signal, a
+carrier, plain QRM - leaves no mark, which is the honest limit of marking the
+first waterfall instead of building a second one. The marks also trail the
+signal they refer to by about one period, since the comparison can only be made
+once both decoders have finished with it.</p>
 
 <p><b>Left click sets the receive frequency, right click the transmit
 frequency</b> &mdash; one button, one frequency. WSJT-Z had made a plain click
 move both at once, with Ctrl for receive alone, and left the right button
 opening a menu whose single item moved both again. <b>Ctrl-click</b> still moves
 the two together, and <b>Shift-click</b> still sets transmit.</p>
+
+<hr />
+
+<h2>When Windows moves the sound cards about</h2>
+
+<p>Change the default playback device in Windows - speakers to a virtual cable,
+say - and the stream this program opened at startup can be left pointing at the
+old card. The sign is transmit audio going to the speakers while the radio gets
+nothing, and until now the only cure was to restart.</p>
+
+<p>The list of sound devices is checked every few seconds. When it changes, the
+program says so and offers to <b>re-open the audio</b> on the cards your settings
+name, looked up afresh at that moment - which is the point, since it is the
+lookup made at startup that went stale.</p>
+
+<p>Nothing is reopened behind your back, and never while you are transmitting or
+tuning: if the cards change mid-transmission, the question waits for the next
+quiet moment. Only the side that changed is touched, so an output that moved does
+not cost you a period of decodes on the inputs.</p>
 
 <hr />
 
@@ -252,12 +332,6 @@ still appears in both panes. That is the point of them.</p>
 <li><b>Tools &gt; Windows sound settings</b> opens the Windows Sound dialog
 straight on the Recording or the Playback tab, so the level of a card can be set
 without hunting through Windows' own settings. MSHV does exactly the same.</li>
-<li><b>PSK Reporter is told what this actually is.</b> Upstream's line named the
-base project and its version, and WSJT-Z left it alone, so every station running
-either fork has been counted on the network as WSJT-X. This reports
-<tt>WSJ-TAY beta N</tt>. Spotting is also on by default for a fresh
-installation - it costs you nothing and the network only works because people
-leave it on. Switch it off and it stays off.</li>
 <li>The program is named <tt>wsj-tay</tt>, so it has its own settings, its own
 lock file and its own decoder shared memory, and never disturbs a stock WSJT-X,
 JTDX, MSHV or WSJT-Z on the same machine. No <tt>--rig-name</tt> needed.</li>
@@ -279,15 +353,14 @@ frequency.</li>
 are all you see of it.</li>
 <li>A decode addressed to you that both sources hear still reaches the spotting
 report twice.</li>
-<li>Only one WSJT program at a time can own a sound card or OmniRig. Running
-this alongside another WSJT-X, JTDX or WSJT-Z leaves whichever started second
-without audio or rig control &mdash; it looks like a broken install but is
-not.</li>
+<li>Only one program at a time can hold the rig: OmniRig, or a serial port for
+CAT. Running this alongside another WSJT-X, JTDX or WSJT-Z leaves whichever
+started second without rig control - it looks like a broken install but is not.
+Sound cards are different: Windows shares a capture device between programs, and
+this one relies on that to feed both decoders from one card.</li>
 <li>Double clicking a compound message that carries a callsign as a hash, in
 angle brackets, on a standard FT8 sub-band, does not yet fill in the call.</li>
 </ul>
-
-<hr />
 
 <hr />
 
@@ -300,6 +373,291 @@ dying quietly part way through a session - was found in his ALL.TXT, not here.</
 <p><small>WSJ-TAY is free software under the GNU General Public License,
 version 3. It comes with absolutely no warranty. If you pass a copy to anyone,
 you owe them the source as well. See <i>Help &gt; About WSJ-TAY</i>.</small></p>
+
+<hr />
+<hr />
+
+<h1>&Sigma;&tau;&alpha; &epsilon;&lambda;&lambda;&eta;&nu;&iota;&kappa;ά</h1>
+
+<h2>WSJ-TAY %1</h2>
+
+<p>Το WSJ-TAY αποκωδικοποιεί <b>δύο πηγές ήχου ταυτόχρονα</b> &mdash; τον
+πομποδέκτη και ένα SDR, ας πούμε &mdash; η καθεμία στο δικό της παράθυρο.</p>
+
+<p>Είναι παραλλαγή του <b>WSJT-Z</b> του SQ9FVE, που με τη σειρά του είναι
+παραλλαγή του <b>WSJT-X</b> του K1JT και της ομάδας WSJT. Ό,τι κάνουν εκείνα τα
+προγράμματα &mdash; τα modes, Auto CQ, Auto Call, Pounce, τα φίλτρα, band
+hopping, QRZ lookup, οι ειδοποιήσεις &mdash; είναι δικό τους. Παρακάτω είναι
+μόνο όσα προσθέτει αυτή η παραλλαγή.</p>
+
+<hr />
+
+<h2>Δύο δέκτες ταυτόχρονα</h2>
+
+<p>Το νόημα είναι η κάλυψη: δύο δέκτες σε διαφορετικές κεραίες δεν ακούνε τους
+ίδιους σταθμούς. Σε μια μετρημένη περίοδο στα 20&nbsp;m: 59 σταθμοί, 40 τους
+άκουσαν και οι δύο, 10 μόνο ο πομποδέκτης, 9 μόνο ο δεύτερος δέκτης.</p>
+
+<h3>Ρύθμιση</h3>
+
+<p><b>Settings &gt; Audio &gt; Input 2</b> επιλέγει τη δεύτερη κάρτα, με δικό της
+Mono/Left/Right. Η λίστα ξεκινάει με <b>None</b>, που είναι ο δρόμος πίσω σε
+έναν δέκτη: ο δεύτερος αποκωδικοποιητής σταματά, το παράθυρό του κλείνει και όσα
+αφορούν εκείνη την πηγή γκριζάρουν.</p>
+
+<h3>Ένας δέκτης, δύο χρονικά παράθυρα</h3>
+
+<p>Με το <b>Input 2 στο None</b>, αν βάλεις <b>offset</b> διάφορο του μηδενός, ο
+δεύτερος αποκωδικοποιητής ανάβει έτσι κι αλλιώς &mdash; στην <b>ίδια κάρτα με το
+Input 1</b>. Ο τίτλος γράφει τότε <i>Input 2 (Input 1, shifted)</i>.</p>
+
+<p>Είναι για τους σταθμούς με χαλασμένο ρολόι. Το FT8 αποκωδικοποιεί ένα χρονικό
+παράθυρο, και όποιος εκπέμπει μισό δευτερόλεπτο αργά πέφτει έξω από αυτό &mdash;
+δεν τον βλέπει ο πρώτος αποκωδικοποιητής, δεν τον βλέπει και κανένας άλλος που
+δουλεύει κανονικά. Ο δεύτερος, με τον ίδιο ήχο μετατοπισμένο, ψάχνει εκεί που
+πραγματικά βρίσκονται. Κρατάς την κανονική εικόνα στο πρώτο παράθυρο και τη
+μετατοπισμένη δίπλα της, αντί να διαλέγεις.</p>
+
+<p>Γυρνάς το offset στο μηδέν και ο δεύτερος σβήνει. Καθρέφτης χωρίς μετατόπιση
+σημαίνει να αποκωδικοποιείς δύο φορές την ίδια κεραία για το τίποτα, με διπλή
+CPU και μνήμη.</p>
+
+<p><b>Η καταγραφή του QSO μηδενίζει το offset</b>, άρα σβήνει και ο καθρέφτης: η
+μετατόπιση ανήκει στη στιγμή για την οποία μπήκε. Ξαναβάζεις το offset και
+συνεχίζεις. Το πρώτο παράθυρο δεν σταματάει ποτέ.</p>
+
+<p>Η μετατόπιση ανήκει πάντα στη <b>δεύτερη</b> πηγή. Το Input 1 ορίζει τον
+χρονισμό των πάντων &mdash; waterfall, κύκλο αποκωδικοποίησης, στήλη DT &mdash;
+οπότε μετατοπίζοντάς το θα μετατόπιζες τα πάντα, και θα ξέθαβες έναν σταθμό
+χάνοντας όλους όσοι έχουν σωστό ρολόι.</p>
+
+<h3>Ίδια συχνότητα</h3>
+
+<p>Οι δύο δέκτες πρέπει να είναι στην <b>ίδια συχνότητα</b>. Οι δύο
+αποκωδικοποιητές μοιράζονται κάθε ρύθμιση εκτός από τον ήχο, οπότε ό,τι ακούει ο
+δεύτερος καταγράφεται στη συχνότητα του πρώτου.</p>
+
+<p><b>Το Input 1 είναι το κύριο.</b> Αυτό οδηγεί το waterfall και τον χρονισμό
+των κύκλων. Βάλε εκεί το ραδιόφωνο που πραγματικά δουλεύεις.</p>
+
+<h3>Τι βλέπεις</h3>
+
+<p>Κάθε πηγή έχει <b>δικό της παράθυρο Band Activity</b>, δίπλα-δίπλα και με ίδιο
+πλάτος σε κάθε άνοιγμα. Και τα δύο είναι πλήρη: σταθμός που ακούστηκε και από
+τους δύο εμφανίζεται και στα δύο, με το δικό του SNR και DT στο καθένα &mdash;
+αυτό ακριβώς είναι το ζητούμενο.</p>
+
+<p>Στην οθόνη δεν μπαίνει σήμανση για το ποια πηγή έδωσε τη γραμμή: το ίδιο το
+παράθυρο το λέει. Στο <b>ALL.TXT</b> μπαίνει, <tt>in=1</tt> ή <tt>in=2</tt>,
+γιατί εκεί οι δύο πηγές γράφουν στο ίδιο αρχείο και πρέπει να μπορείς να βρεις
+εκ των υστέρων πότε σταμάτησε να ακούει ο δεύτερος δέκτης.</p>
+
+<p>Στο τέλος κάθε περιόδου μπαίνει σύνοψη και στα δύο παράθυρα:</p>
+
+<pre>--------------------- In 1: 42   In 2: 38 ---------------------</pre>
+
+<p>Μετά από μερικές ώρες, αυτό είναι η ειλικρινής απάντηση στο &laquo;αξίζει ο
+δεύτερος δέκτης;&raquo;.</p>
+
+<p><b>Το διπλό κλικ δουλεύει και στα δύο παράθυρα</b>, και παίρνει callsign,
+report και συχνότητα από τη γραμμή που πάτησες &mdash; άρα καλώντας από το
+παράθυρο In 2 στέλνεις το σήμα που μέτρησε <i>εκείνος</i> ο δέκτης. Συμπληρώνει
+και το κουτί <b>call</b> στο ταμπλό, για το Sync.</p>
+
+<p><b>Ο σταθμός που δουλεύεις μαρκάρεται και στα δύο παράθυρα</b> &mdash; κόκκινο
+το callsign, μπλε το grid, αν είναι αναμμένα τα Highlight DX Call/Grid στο
+Settings &gt; General.</p>
+
+<p><b>Το Erase</b> καθαρίζει και τα δύο παράθυρα μαζί.</p>
+
+<h3>Εκπομπή</h3>
+
+<p>Άλλο το να εμφανίζεις ένα decode, άλλο το να ενεργήσεις πάνω του. Και τα δύο
+παράθυρα δείχνουν τα πάντα, αλλά η αυτόματη ακολουθία, η εκπομπή και τα spotting
+γίνονται <b>μία φορά ανά μήνυμα</b>, όσοι δέκτες κι αν το άκουσαν. Έτσι μια
+απάντηση που την ακούει μόνο ο δεύτερος δέκτης συνεχίζει κανονικά το QSO, και
+τίποτα δεν στέλνεται δύο φορές.</p>
+
+<hr />
+
+<h2>Οι μπάρες στάθμης</h2>
+
+<p>Κάθε πηγή έχει <b>δική της μπάρα, δίπλα στο παράθυρο που της ανήκει</b>, στην
+ίδια κλίμακα ώστε να συγκρίνονται. Πέφτει στο μηδέν όταν σταματήσει να έρχεται
+ήχος, οπότε μια πηγή που πέθανε φαίνεται αμέσως.</p>
+
+<hr />
+
+<h2>Το ταμπλό κάτω από το παράθυρο In 2</h2>
+
+<p><b>Mute In 2</b> &mdash; σταματάει την αποκωδικοποίηση της δεύτερης πηγής,
+χωρίς να πειράξει τις ρυθμίσεις.</p>
+
+<p><b>Offset (δευτερόλεπτα)</b> &mdash; μετατοπίζει χρονικά τη δεύτερη πηγή. Ήχος
+που έρχεται μέσω browser και εικονικού καλωδίου καθυστερεί από το buffering, και
+τα σήματά του πέφτουν έξω από το παράθυρο που ψάχνει ο αποκωδικοποιητής.
+<b>Ξεκινάει στο μηδέν και γυρίζει στο μηδέν με την καταγραφή του QSO.</b></p>
+
+<p><b>call</b> &mdash; το callsign στο οποίο θα στοχεύσει το Sync. Το διπλό κλικ
+το συμπληρώνει μόνο του, και αδειάζει όταν καθαρίσει η επαφή.</p>
+
+<p><b>Sync</b> &mdash; ρυθμίζει το offset αυτόματα: με <b>άδειο call</b>
+ευθυγραμμίζει τη δεύτερη πηγή με την πρώτη (η καθημερινή χρήση), με
+<b>συμπληρωμένο call</b> ευθυγραμμίζει με εκείνον τον σταθμό. Σβήνοντάς το
+επιστρέφει το offset που είχες πριν, και η καταγραφή του QSO το σβήνει όταν ήταν
+κουμπωμένο πάνω σε callsign. Το Sync αλλάζει <b>μόνο</b> πώς αποκωδικοποιείται η
+δεύτερη πηγή· ο χρονισμός εκπομπής ακολουθεί πάντα το UTC.</p>
+
+<p><b>Ο αριθμός στο τέλος της σειράς</b> &mdash; η μετρημένη καθυστέρηση της
+δεύτερης πηγής ως προς την πρώτη, η διάμεσος των τελευταίων 50 σταθμών που
+άκουσαν και οι δύο. Εμφανίζεται μόλις μαζευτούν τουλάχιστον 5.</p>
+
+<p><b>watch 1 / watch 2</b> &mdash; βάζεις ένα callsign και μαρκάρεται όπου
+εμφανιστεί, και στα τρία παράθυρα: το πρώτο κόκκινο, το δεύτερο μπλε. Μαρκάρεται
+μόνο το callsign, όχι όλη η γραμμή. Τα κουτιά ξεκινούν <b>άδεια</b> σε κάθε
+άνοιγμα, σκόπιμα.</p>
+
+<p><b>CPU / RAM</b> &mdash; τι κοστίζει <b>το πρόγραμμα</b>: το παράθυρο και οι
+δύο αποκωδικοποιητές μαζί, όχι όλο το μηχάνημα. Δείγμα κάθε δύο δευτερόλεπτα.</p>
+
+<hr />
+
+<h2>Παρακολούθηση callsign</h2>
+
+<p>Δύο κουτάκια στο ταμπλό κάτω από το παράθυρο In 2, με την ένδειξη
+<i>watch 1</i> και <i>watch 2</i>. Γράφεις ένα callsign σε όποιο θέλεις και
+μαρκάρεται παντού όπου εμφανίζεται, και στα τρία παράθυρα: το πρώτο κόκκινο,
+το δεύτερο μπλε, για να ξεχωρίζουν. Μαρκάρεται μόνο το callsign και όχι όλη η
+γραμμή, ώστε να διαβάζονται το report και το locator δίπλα του. Πιάνονται και
+τα hashed callsign, αυτά που τυπώνονται σε γωνιακές αγκύλες.</p>
+
+<p>Και τα δύο κουτάκια ξεκινάνε άδεια σε κάθε εκκίνηση, επίτηδες. Κρατάνε
+όποιον κυνηγάς <i>τώρα</i>&mdash; ένα callsign ξεχασμένο από την προηγούμενη
+φορά θα χρωμάτιζε decode για λόγο που δεν θυμάται πια κανείς.</p>
+
+<hr />
+
+<h2>Hold Rep</h2>
+
+<p>Κάτω από το κουτί Rep. Κρατάει το report που πληκτρολόγησες &mdash; χωρίς
+αυτό, η αυτόματη ακολουθία το αντικαθιστά με αυτό που μέτρησε στο επόμενο decode.
+<b>Σβήνει μόνο του όταν καταγραφεί το QSO</b>, και ξεκινάει σβηστό σε κάθε
+άνοιγμα: το κρατημένο report ανήκει στον σταθμό για τον οποίο μπήκε.</p>
+
+<hr />
+
+<h2>Ο καταρράκτης</h2>
+
+<p>Είναι καρφωμένος μέσα στο κεντρικό παράθυρο και δεν έχει κουμπιά κλεισίματος,
+ώστε να μην κλείνει κατά λάθος. Δείχνει μόνο την πρώτη πηγή. Το <b>X</b> που
+είχε βάλει δίπλα στο Controls το WSJT-Z είναι κρυμμένο &mdash; καθάριζε τον
+καταρράκτη, αλλά διαβαζόταν σαν κουμπί κλεισίματος.</p>
+
+<p><b>Πράσινα σημάδια</b> δείχνουν πού άκουσε ο <b>δεύτερος</b> δέκτης σταθμό που
+<b>ΔΕΝ άκουσε ο πρώτος</b>: στην κλίμακα συχνοτήτων για την περίοδο που μόλις
+αποκωδικοποιήθηκε, και ζωγραφισμένα μέσα στον ίδιο τον καταρράκτη, όπου
+κατεβαίνουν μαζί με την εικόνα και αφήνουν μια κοντή πράσινη στήλη κάτω από την
+περίοδο στην οποία ανήκουν.</p>
+
+<p>Το κουτάκι <b>In 2 graph</b> δίπλα στο <i>Controls</i>, πάνω από τον
+καταρράκτη, ανάβει και σβήνει τα σημάδια &mdash; και η επιλογή θυμάται.</p>
+
+<p>Μαρκάρεται μόνο το τυφλό σημείο, ποτέ όλη η κίνηση του δεύτερου δέκτη. Όταν
+τα μαρκάραμε όλα, η κλίμακα γέμισε γραμμές που δεν έλεγαν τίποτα περισσότερο από
+&laquo;εδώ υπάρχει FT8&raquo; &mdash; που το λέει ήδη ο καταρράκτης. Τα σημάδια
+επίσης καθυστερούν κατά μία περίοδο, αφού η σύγκριση γίνεται μόνο όταν
+τελειώσουν και οι δύο αποκωδικοποιητές.</p>
+
+<p>Υπάρχουν για μια παγίδα: διαλέγεις πού θα εκπέμψεις με το μάτι, από αυτόν τον
+καταρράκτη &mdash; και ένας σταθμός που τον ακούει μόνο ο δεύτερος δέκτης δεν
+αφήνει κανένα ίχνος εδώ. Απαντάς σε έναν τέτοιο και το σήμα σου μπορεί να πέσει
+ακριβώς πάνω σε κάποιον που δεν βλέπεις. Τα σημάδια είναι αυτός ο κάποιος.</p>
+
+<p>Μόνο decode. Ενέργεια που δεν βγάζει decode &mdash; αδύναμο σήμα, φέρον,
+σκέτο QRM &mdash; δεν αφήνει σημάδι. Αυτό είναι το τίμημα του να μαρκάρουμε τον
+πρώτο καταρράκτη αντί να φτιάξουμε δεύτερο.</p>
+
+<p><b>Αριστερό κλικ βάζει τη λήψη, δεξί κλικ την εκπομπή</b> &mdash; ένα κουμπί,
+μία συχνότητα. Το WSJT-Z είχε κάνει το σκέτο κλικ να κουνάει και τα δύο.
+<b>Ctrl+κλικ</b> τα κουνάει και τα δύο μαζί, <b>Shift+κλικ</b> βάζει την
+εκπομπή.</p>
+
+<hr />
+
+<h2>Όταν τα Windows κουνάνε τις κάρτες ήχου</h2>
+
+<p>Αλλάζεις την προεπιλεγμένη συσκευή αναπαραγωγής στα Windows &mdash; από τα
+ηχεία σε εικονικό καλώδιο, ας πούμε &mdash; και η ροή που άνοιξε το πρόγραμμα
+στην εκκίνηση μπορεί να μείνει κολλημένη στην παλιά κάρτα. Το σημάδι είναι ότι
+η εκπομπή φεύγει στα ηχεία και το ραδιόφωνο δεν παίρνει τίποτα· μέχρι τώρα η
+μόνη λύση ήταν επανεκκίνηση.</p>
+
+<p>Η λίστα των συσκευών ελέγχεται κάθε λίγα δευτερόλεπτα. Όταν αλλάξει, το
+πρόγραμμα σου το λέει και προσφέρεται να <b>ξανανοίξει τον ήχο</b> στις κάρτες
+που λένε οι ρυθμίσεις σου, ψάχνοντάς τες εκείνη τη στιγμή &mdash; εκεί ήταν το
+πρόβλημα, στην αναζήτηση της εκκίνησης που είχε μπαγιατέψει.</p>
+
+<p>Τίποτα δεν ξανανοίγει στα κρυφά, και ποτέ όσο εκπέμπεις ή κάνεις tune: αν η
+αλλαγή συμβεί στη μέση εκπομπής, η ερώτηση περιμένει την πρώτη ήσυχη στιγμή.
+Πειράζεται μόνο η πλευρά που άλλαξε, οπότε μια έξοδος που κουνήθηκε δεν σου
+κοστίζει μια περίοδο από decode στις εισόδους.</p>
+
+<hr />
+
+<h2>Μία γραμμή ανά μήνυμα</h2>
+
+<p><b>Decode &gt; Hide FT8 dupe messages</b> κάνει πια αυτό που λέει το όνομά
+του: μία γραμμή ανά μήνυμα ανά περίοδο, αυτή με το καλύτερο SNR. Στο κανονικό
+πρόγραμμα ο διακόπτης έπιανε μόνο με τον multi-threaded αποκωδικοποιητή και από
+πάνω ήθελε κι άλλες προϋποθέσεις &mdash; δηλαδή σε συνηθισμένο σταθμό HF δεν
+έκανε τίποτα. Κάθε πηγή κρατάει <b>δικό της</b> ιστορικό, οπότε σταθμός που τον
+ακούνε και οι δύο δέκτες εμφανίζεται κανονικά και στα δύο παράθυρα.</p>
+
+<hr />
+
+<h2>Μικρότερα</h2>
+
+<ul>
+<li><b>Tools &gt; Windows sound settings</b>: ανοίγει το παράθυρο Ήχου των
+Windows κατευθείαν στην καρτέλα Εγγραφή ή Αναπαραγωγή.</li>
+<li>Το πρόγραμμα ονομάζεται <tt>wsj-tay</tt>, οπότε έχει δικές του ρυθμίσεις και
+δεν ενοχλεί κανένα WSJT-X, JTDX, MSHV ή WSJT-Z στο ίδιο μηχάνημα.</li>
+<li>Κάθε συνεδρία γράφει στο <tt>wsj-tay-beta.log</tt>, δίπλα στις ρυθμίσεις
+(<i>File &gt; Open log directory</i>): ποιο αρχείο ρυθμίσεων διαβάστηκε,
+callsign, κάρτες ήχου, ραδιόφωνο, και κάθε αποτυχία του δεύτερου
+αποκωδικοποιητή. Συνεδρία που τελειώνει χωρίς &laquo;closed normally&raquo;
+πέθανε.</li>
+</ul>
+
+<hr />
+
+<h2>Γνωστοί περιορισμοί</h2>
+
+<ul>
+<li>Οι δύο αποκωδικοποιητές μοιράζονται κάθε παράμετρο εκτός από τα δείγματα,
+οπότε η δεύτερη πηγή αποδίδεται στη συχνότητα της πρώτης.</li>
+<li>Δεν υπάρχει waterfall για τη δεύτερη πηγή.</li>
+<li>Decode που απευθύνεται σε εσένα και το ακούνε και οι δύο πηγές φτάνει δύο
+φορές στα δίκτυα spotting.</li>
+<li>Μόνο ένα πρόγραμμα τη φορά κρατάει το ραδιόφωνο (OmniRig ή σειριακή CAT). Οι
+κάρτες ήχου είναι άλλο θέμα: τα Windows τις μοιράζουν, και αυτό το πρόγραμμα
+βασίζεται σε αυτό για να ταΐζει δύο αποκωδικοποιητές από μία κάρτα.</li>
+<li>Το διπλό κλικ σε σύνθετο μήνυμα με callsign σε αγκύλες, στις κανονικές
+υποζώνες FT8, δεν συμπληρώνει ακόμα το call.</li>
+</ul>
+
+<hr />
+
+<h2>Ευχαριστίες</h2>
+
+<p>Στον <b>SV1AER</b>, για τις ώρες δοκιμών στον δικό του σταθμό και για τα log
+που έστειλε πίσω. Το σοβαρότερο σφάλμα αυτού του προγράμματος &mdash; ο δεύτερος
+αποκωδικοποιητής που πέθαινε αθόρυβα στη μέση της συνεδρίας &mdash; βρέθηκε στο
+δικό του ALL.TXT, όχι εδώ.</p>
+
+<p><small>Ελεύθερο λογισμικό υπό την GNU General Public License v3, χωρίς καμία
+εγγύηση. Αν το δώσεις σε κάποιον, του χρωστάς και τον πηγαίο κώδικα. Δες
+<i>Help &gt; About WSJ-TAY</i>.</small></p>
 )HELP";
 }
 

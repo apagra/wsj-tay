@@ -46,6 +46,7 @@ public:
   void   setSuperHound(bool b);
   int    smoothYellow();
   void   setRxBand (QString const& band);
+  void   setIn2Marks (QVector<int> const& marks);
   void   setWSPRtransmitted();
   void   drawRed(int ia, int ib);
   void   setVHF(bool bVHF);
@@ -80,6 +81,7 @@ private slots:
   void on_cbFlatten_toggled(bool b);
   void on_cbRef_toggled(bool b);
   void on_cbControls_toggled(bool b);
+  void on_cbIn2Marks_toggled(bool b);
   // Z
   void on_cbBars_toggled(bool b);
   void on_cbClear_toggled(bool b);

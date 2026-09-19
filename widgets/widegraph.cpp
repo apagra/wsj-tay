@@ -34,6 +34,7 @@ WideGraph::WideGraph(QSettings * settings, QWidget *parent) :
   ui->widePlot->setMaximumHeight(800);
   ui->widePlot->setCurrent(false);
   ui->cbControls->setCursor(Qt::ArrowCursor);
+  ui->cbIn2Marks->setCursor(Qt::ArrowCursor);
   ui->cbBars->setCursor(Qt::ArrowCursor);
   ui->cbClear->setCursor(Qt::ArrowCursor);
   ui->pbClear->setCursor(Qt::ArrowCursor);
@@ -104,6 +105,8 @@ WideGraph::WideGraph(QSettings * settings, QWidget *parent) :
     setRxRange ();
     ui->controls_widget->setVisible(!m_settings->value("HideControls",false).toBool());
     ui->cbControls->setChecked(!m_settings->value("HideControls",false).toBool());
+    ui->cbIn2Marks->setChecked(m_settings->value("In2Marks",true).toBool());
+    ui->widePlot->setIn2MarksEnabled(ui->cbIn2Marks->isChecked());
   }
 
   int index=0;
@@ -158,6 +161,7 @@ void WideGraph::saveSettings()                                           //saveS
   m_settings->setValue("Flatten",m_bFlatten);
   m_settings->setValue("UseRef",m_bRef);
   m_settings->setValue ("HideControls", ui->controls_widget->isHidden ());
+  m_settings->setValue ("In2Marks", ui->cbIn2Marks->isChecked ());
   m_settings->setValue ("Bars", m_bars);
   m_settings->setValue ("Clear", m_clear);
   m_settings->setValue ("FminPerBand", m_fMinPerBand);
@@ -377,6 +381,11 @@ void WideGraph::setDialFreq(double d)                             //setDialFreq
   ui->widePlot->setDialFreq(d);
 }
 
+void WideGraph::setIn2Marks (QVector<int> const& marks)
+{
+  ui->widePlot->setIn2Marks (marks);
+}
+
 void WideGraph::setRxBand (QString const& band)
 {
   m_rxBand = band;
@@ -449,6 +458,14 @@ void WideGraph::on_cbRef_toggled(bool b)
 void WideGraph::on_cbControls_toggled(bool b)
 {
   ui->controls_widget->setVisible(b);
+}
+
+// The green marks say where the second receiver heard a station the first one
+// did not. Useful when choosing where to transmit, in the way; the switch sits
+// beside Controls because that is where the hand already goes.
+void WideGraph::on_cbIn2Marks_toggled(bool b)
+{
+  ui->widePlot->setIn2MarksEnabled (b);
 }
 
 void WideGraph::on_cbBars_toggled(bool b)

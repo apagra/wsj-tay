@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <cstdlib>
 
 #define MAX_SCREENSIZE 8192
 
@@ -130,8 +131,52 @@ void CPlotter::paintEvent(QPaintEvent *)                                // paint
       painter.drawPixmap(m_lastMouseX, 0, m_HoverOverlayPixmap);
     }
   }
+  // Where the second receiver heard a station that the first one did not - the
+  // blind spot, and nothing else. Marking every decode of the second source
+  // filled the scale with ticks and said only "there is FT8 here", which the
+  // waterfall says already.
+  if (m_in2MarksOn && !m_in2Marks.isEmpty ())
+    {
+      auto const bw = signalBandwidth ();
+      painter.setPen (Qt::NoPen);
+      painter.setBrush (QColor {0, 200, 0, 130});
+      for (auto const f : m_in2Marks)
+        {
+          int const x1 = XfromFreq (f - bw / 2), x2 = XfromFreq (f + bw / 2);
+          if (x2 >= 0 && x1 < m_Size.width ())
+            {
+              painter.drawRect (x1, 26, qMax (2, x2 - x1), 3);
+            }
+        }
+    }
+
   m_lastPaintedX = m_lastMouseX;
   m_paintEventBusy=false;
+}
+
+float CPlotter::signalBandwidth () const
+{
+  // Lifted from the bandwidth marker in DrawOverlay so the two always agree: a
+  // mark that claims to be a station should be exactly as wide as the marker
+  // the program draws for one.
+  if (m_mode == "FT8") return 7 * 12000.0 / 1920.0;
+  if (m_mode == "FT4") return 3 * 12000.0 / 576.0;
+  if (m_mode == "FT2") return 3 * 12000.0 / 288.0;
+  return 9.0 * 12000.0 / m_nsps;                    // JT9 and the rest
+}
+
+void CPlotter::setIn2Marks (QVector<int> const& marks)
+{
+  if (marks == m_in2Marks) return;
+  m_in2Marks = marks;
+  update ();
+}
+
+void CPlotter::setIn2MarksEnabled (bool on)
+{
+  if (on == m_in2MarksOn) return;
+  m_in2MarksOn = on;
+  update ();
 }
 
 void CPlotter::draw(float swide[], bool bScroll, bool bRed)
@@ -203,6 +248,35 @@ void CPlotter::draw(float swide[], bool bScroll, bool bRed)
     if (swide[i]<1.e29) painter1.setPen(g_ColorTbl[y1]);
     painter1.drawPoint(i,m_j);
   }
+
+  // The same marks painted into the line being written, so they travel down with
+  // the picture. Drawn soft rather than as a hard rule: a bright line across the
+  // waterfall reads as a scratch on the glass, while a green smudge of about the
+  // width of an FT8 signal reads as what it is - a station, shown in a colour
+  // the first receiver never produces.
+  if (m_in2MarksOn && !m_in2Marks.isEmpty ())
+    {
+      // As wide as a signal of the mode in use, and faint: this has to read as
+      // something on the band rather than as a rule drawn over the picture.
+      auto const bw = signalBandwidth ();
+      for (auto const f : m_in2Marks)
+        {
+          int const x1 = XfromFreq (f - bw / 2), x2 = XfromFreq (f + bw / 2);
+          int const half = qMax (1, (x2 - x1) / 2);
+          int const mx = (x1 + x2) / 2;
+          for (int d = -half; d <= half; ++d)
+            {
+              int const x = mx + d;
+              if (x < 0 || x >= iz) continue;
+              // Full in the middle, nothing at the edges, like a signal seen
+              // through the same window the decoder looks through.
+              double const edge = double (std::abs (d)) / double (half + 1);
+              int const alpha = int (110 * (1.0 - edge * edge));
+              painter1.setPen (QColor {0, 255, 0, qMax (12, alpha)});
+              painter1.drawPoint (x, m_j);
+            }
+        }
+    }
   m_line++;
 
   float y2min=1.e30;
