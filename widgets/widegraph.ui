@@ -55,6 +55,25 @@
      <property name="lineWidth">
       <number>1</number>
      </property>
+     <widget class="QCheckBox" name="cbIn2Marks">
+      <property name="geometry">
+       <rect>
+        <x>124</x>
+        <y>0</y>
+        <width>96</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>In 2 graph</string>
+      </property>
+      <property name="toolTip">
+       <string>Mark in green, on the scale and in the waterfall, the stations the second receiver heard and the first did not - the part of the band this picture cannot show.</string>
+      </property>
+      <property name="checked">
+       <bool>true</bool>
+      </property>
+     </widget>
      <widget class="QCheckBox" name="cbControls">
       <property name="geometry">
        <rect>

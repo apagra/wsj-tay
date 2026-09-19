@@ -314,7 +314,7 @@
              </font>
             </property>
             <property name="text">
-             <string>Band Activity</string>
+             <string>Band Activity   Input 1</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -1106,7 +1106,7 @@ QLabel[oob=&quot;true&quot;] {
              </font>
             </property>
             <property name="text">
-             <string>Band Activity - In 2</string>
+             <string>Band Activity   Input 2</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>

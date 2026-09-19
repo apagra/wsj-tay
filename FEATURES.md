@@ -32,6 +32,38 @@ that source greys out. Upstream's list holds only real devices, which is right
 for an input you cannot do without and wrong for one that is optional. Left on
 None, the program behaves exactly like WSJT-Z.
 
+### One receiver, two time windows
+
+With **Input 2 on None**, setting the **offset** to anything but zero starts the
+second decoder anyway, on the same card as Input 1. The pane then says *Input 2
+(Input 1, shifted)*.
+
+It is for stations whose clocks are wrong. FT8 decodes a window of time, and a
+station transmitting half a second late falls outside it — the first decoder
+never sees them, and neither does anyone running things normally. The second
+decoder, fed the same audio but shifted, searches where those stations actually
+are. The straight view stays in the first pane and the shifted one sits beside
+it, instead of choosing between them.
+
+Back to zero and the second decoder stops. Mirroring with no offset decodes one
+aerial twice for nothing, at double the processor and memory; the few decodes
+that differ between the panes differ only because the two streams began on
+different samples — noise around one signal, not a second opinion.
+
+**Logging a QSO sets the offset to zero**, so the mirror stops with it: a shift
+belongs to the moment it was set for. Type the offset again to carry on. The
+first pane never stops, whatever the offset does.
+
+The shift belongs to the second source and always will. Input 1 sets the timing
+of everything — the waterfall, the decode cycle, the DT column — so shifting it
+would shift the lot, digging out the odd station by losing everyone whose clock
+is right.
+
+Choosing Input 1's card explicitly in the Input 2 list does the same, except it
+stays on whatever the offset says; the program says so once, when it is picked.
+
+### Both on the same frequency
+
 Both receivers should be on the **same frequency**. The two decoders share
 every setting except their audio, so decodes from the second source are
 attributed to the dial frequency of the first; on a different band its spots
@@ -198,7 +230,29 @@ Docked inside the main window rather than floating in one of its own, and with
 no close or float button, so it cannot be shut by accident and leave the program
 looking broken. Its title bar still drags it above or below the text panes.
 
-It shows the first source only.
+It shows the first source only — but not quite. **Green marks** show where the
+**second** receiver heard a station that **the first one did not**: on the
+frequency scale for the period just decoded, and painted into the waterfall
+itself, where they scroll down with the picture.
+
+They are there because of a trap: the transmit frequency is chosen by eye from
+this waterfall, and a station only the second receiver hears leaves no trace on
+it. Answering one of those can put your signal straight on top of somebody you
+cannot see. The ticks are that somebody.
+
+Each mark is drawn as wide as one signal of the mode in use — the same figure
+the program uses for its own bandwidth marker, so FT8 marks are FT8-wide and FT4
+marks FT4-wide — and faint, bright in the middle and fading to nothing at the
+edges. It should read as something on the band, not as a rule drawn over the
+picture. The **In 2 graph** box beside *Controls*, at the top of the waterfall,
+turns the marks off and on; the setting is remembered.
+
+Only the blind spot is marked, never the second receiver's whole traffic:
+marking everything filled the scale with ticks that said no more than "there is
+FT8 here". Decodes only — energy that never becomes a decode leaves no mark, and
+the marks trail the signal by about one period, since the comparison can only be
+made once both decoders have finished with it. That is the honest limit of
+marking the first waterfall instead of building a second one.
 
 The **X** WSJT-Z put beside *Controls* is hidden. It cleared the waterfall, but
 where it sat it read as a close button on a dock that deliberately cannot be
@@ -241,18 +295,43 @@ What stayed is what the licence and good manners ask for:
   given a copy is owed the source.
 - **Help → About WSJT-Z** — SQ9FVE's own, untouched.
 
+## When Windows moves the sound cards about
+
+Change the default playback device in Windows and the stream opened at startup
+can be left pointing at the old card — transmit audio to the speakers while the
+radio gets nothing, curable until now only by restarting.
+
+The device list is checked every few seconds. When it changes the program says
+so and offers to **re-open the audio** on the cards the settings name, looked up
+afresh: it is the startup lookup that goes stale. Never behind the operator's
+back, and never while transmitting or tuning — the question waits for the next
+quiet moment. Only the side that changed is touched, so a moved output costs no
+decodes on the inputs.
+
+---
+
+## One line per message
+
+**Decode → Hide FT8 dupe messages** now does what its name says: one line per
+message per period, the one with the best SNR.
+
+Upstream's switch took effect only with the multi-threaded decoder, and on top of
+that an early decode start, a VHF band or *Reduce false decodes* — so on an
+ordinary HF station with the settings as they come it did nothing, and the same
+station came up two and three times a period, a hertz apart, one line carrying an
+AP marker and the other not.
+
+Each receive source keeps its own record, so a station both receivers hear still
+appears in both panes. That is the point of them.
+
+---
+
 ## Smaller differences
 
 - The title names this fork and the station it belongs to. Attribution to
   SQ9FVE and K1JT lives in Help → About WSJ-TAY, Help → About WSJT-Z and the
   `AUTHORS` file, which is where the licence wants it rather than in the title
   bar.
-- **PSK Reporter is told what this actually is.** Upstream's line named the base
-  project and its version, and WSJT-Z left it alone, so every station running
-  either fork has been counted on the network as WSJT-X. This reports
-  `WSJ-TAY beta N`. Spotting is also **on by default** for a fresh installation:
-  it costs the operator nothing and the network only works because people leave
-  it on. Anyone who switches it off keeps it off.
 - The application is named `wsj-tay`, so it has its own settings, its own lock
   file and its own decoder shared memory, and never disturbs the stock WSJT-X,
   JTDX, MSHV or WSJT-Z installs on the same machine. No `--rig-name` needed.
@@ -275,9 +354,11 @@ What stayed is what the licence and good manners ask for:
   you see of it.
 - A decode addressed to you that both sources hear still reaches the spotting
   report twice.
-- Only one WSJT program at a time can own a sound card or OmniRig. Running this
-  alongside another WSJT-X, JTDX or WSJT-Z leaves whichever started second
-  without audio or rig control — it looks like a broken install but is not.
+- Only one program at a time can hold the rig: OmniRig, or a serial port for CAT.
+  Running this alongside another WSJT-X, JTDX or WSJT-Z leaves whichever started
+  second without rig control — it looks like a broken install but is not. Sound
+  cards are different: Windows shares a capture device between programs, and this
+  one relies on that to feed both decoders from one card.
 
 ---
 

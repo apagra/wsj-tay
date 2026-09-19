@@ -544,6 +544,11 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (&m_resourceTimer, &QTimer::timeout, this, &MainWindow::updateResourceUsage);
   m_resourceTimer.start (2000);
 
+  // Slower than the readout: enumerating audio devices is not free, and a card
+  // being switched is a thing that happens seconds apart, not milliseconds.
+  connect (&m_audioWatchTimer, &QTimer::timeout, this, &MainWindow::checkAudioDevicesChanged);
+  m_audioWatchTimer.start (5000);
+
   ui->cb_autoModeSwitch->setContextMenuPolicy (Qt::CustomContextMenu);
   update_auto_mode_switch_widget ();
   m_watchdogAnchorUtc = QDateTime::currentDateTimeUtc ();
@@ -1372,28 +1377,11 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   betaLog (QString {"rx devices  %1 seen by Qt"}
            .arg (QAudioDeviceInfo::availableDevices (QAudio::AudioInput).count ()));
   betaLog (QString {"rig         %1"}.arg (m_config.rig_name ()));
-  // The second source's controls stay where they are when no device is chosen
-  // for it, greyed out rather than gone. A control that vanishes leaves the
-  // operator hunting for what they broke, and the room is there either way.
-  { auto const on = !m_config.audio_input_2_device ().isNull ();
-    ui->signal_meter_2_label->setEnabled (on);
-    ui->sbInput2Offset->setEnabled (on);
-    ui->lblInput2Measured->setEnabled (on); ui->cbSyncToSelected->setEnabled (on);
-    ui->leSyncCall->setEnabled (on);
-    // The pane itself goes when there is nothing to show in it - an empty
-    // column of decodes is not information. What stays is the panel
-    // underneath: the watch boxes and the readout have nothing to do with
-    // the second source, and the controls that do are greyed, not gone.
-    ui->in2_decodes_title_label->setVisible (on);
-    ui->in2_decodes_headings_label->setVisible (on);
-    ui->decodedTextBrowser_in2->setVisible (on);
-    ui->signal_meter_2_widget->setVisible (on); }
-  if (!m_config.audio_input_2_device ().isNull ())
-    {
-      Q_EMIT startAudioInputStream2 (m_config.audio_input_2_device ()
-                                     , m_rx_audio_buffer_frames
-                                     , m_detector2, m_downSampleFactor, m_config.audio_input_2_channel ());
-    }
+  applySecondSource ();
+  // Setting a time offset with no second card chosen is what turns the mirror
+  // on, so the box has to be watched.
+  connect (ui->sbInput2Offset, static_cast<void (QDoubleSpinBox::*) (double)> (&QDoubleSpinBox::valueChanged),
+           this, [this] (double) { applySecondSource (); });
 
   enable_DXCC_entity (m_config.DXCC ());  // sets text window proportions and (re)inits the logbook
 
@@ -2953,29 +2941,8 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
                                       , m_config.audio_input_channel ());
       }
 
-      if(m_config.restart_audio_input_2 ()) {
-        { auto const on = !m_config.audio_input_2_device ().isNull ();
-          ui->signal_meter_2_label->setEnabled (on);
-          ui->sbInput2Offset->setEnabled (on);
-          ui->lblInput2Measured->setEnabled (on); ui->cbSyncToSelected->setEnabled (on);
-          ui->leSyncCall->setEnabled (on);
-          // The pane itself goes when there is nothing to show in it - an empty
-          // column of decodes is not information. What stays is the panel
-          // underneath: the watch boxes and the readout have nothing to do with
-          // the second source, and the controls that do are greyed, not gone.
-          ui->in2_decodes_title_label->setVisible (on);
-          ui->in2_decodes_headings_label->setVisible (on);
-          ui->decodedTextBrowser_in2->setVisible (on);
-          ui->signal_meter_2_widget->setVisible (on); }
-        if (m_config.audio_input_2_device ().isNull ()) {
-          // cleared: stop capturing rather than leaving the old device open
-          Q_EMIT stopAudioInputStream2 ();
-        } else {
-          Q_EMIT startAudioInputStream2 (m_config.audio_input_2_device ()
-                                         , m_rx_audio_buffer_frames
-                                         , m_detector2, m_downSampleFactor
-                                         , m_config.audio_input_2_channel ());
-        }
+      if (m_config.restart_audio_input_2 () || m_config.restart_audio_input ()) {
+        applySecondSource ();
       }
 
       if(m_config.restart_audio_output () && !m_config.audio_output_device ().isNull ()) {
@@ -5714,6 +5681,20 @@ void MainWindow::emitPeriodSummary ()
   if (!m_dec1Done || m_decoder2Busy) return;
   if (m_keys1.isEmpty () && m_keys2.isEmpty ()) return;
   if (m_config.audio_input_2_device ().isNull ()) return;
+  // What the second receiver heard and the first did not: the blind spot, and
+  // the only part of its traffic worth marking on a waterfall that shows the
+  // first source. Taken here because this is the moment both have finished with
+  // the period, so the comparison is complete.
+  if (m_wideGraph)
+    {
+      QVector<int> blind;
+      for (auto it = m_keys2Freq.cbegin (); it != m_keys2Freq.cend (); ++it)
+        {
+          if (!m_keys1.contains (it.key ())) blind.append (it.value ());
+        }
+      m_wideGraph->setIn2Marks (blind);
+    }
+
   auto const line = QString {"In 1: %1   In 2: %2 "}
     .arg (m_keys1.size ()).arg (m_keys2.size ()).rightJustified (40, '-');
   ui->decodedTextBrowser->insertLineSpacer (line);
@@ -5722,6 +5703,177 @@ void MainWindow::emitPeriodSummary ()
 }
 
 
+
+// Which card the second decoder listens to, and whether it listens at all.
+//
+// Choose a card of your own for Input 2 and it is that one, always. Leave Input
+// 2 empty and it mirrors Input 1 - but only once a time offset is set, because
+// mirroring with no offset decodes the same aerial twice for nothing, at double
+// the processor and memory. With an offset it earns its keep: the same audio
+// searched in a different time window, which digs out stations whose clocks are
+// off and which the first decoder throws away.
+QAudioDeviceInfo MainWindow::secondSourceDevice () const
+{
+  if (!m_config.audio_input_2_device ().isNull ()) return m_config.audio_input_2_device ();
+  if (ui->sbInput2Offset->value () != 0. && !m_config.audio_input_device ().isNull ())
+    {
+      return m_config.audio_input_device ();
+    }
+  return QAudioDeviceInfo {};
+}
+
+// Opens or closes the second capture stream to match, and dresses the window to
+// suit. Only transitions do anything: turning an offset from -0.40 to -0.45
+// leaves a running stream alone.
+void MainWindow::applySecondSource ()
+{
+  auto const device = secondSourceDevice ();
+  auto const wanted = device.isNull () ? QString {} : device.deviceName ();
+  bool const mirrored = !device.isNull () && m_config.audio_input_2_device ().isNull ();
+
+  if (wanted != m_secondSourceOpen)
+    {
+      if (device.isNull ())
+        {
+          Q_EMIT stopAudioInputStream2 ();
+          betaLog ("second source off");
+        }
+      else
+        {
+          Q_EMIT startAudioInputStream2 (device, m_rx_audio_buffer_frames, m_detector2
+                                         , m_downSampleFactor
+                                         , mirrored ? m_config.audio_input_channel ()
+                                                    : m_config.audio_input_2_channel ());
+          betaLog (QString {"second source on %1%2"}.arg (wanted)
+                   .arg (mirrored ? " (mirroring input 1)" : ""));
+        }
+      m_secondSourceOpen = wanted;
+    }
+
+  auto const on = !device.isNull ();
+  ui->signal_meter_2_label->setEnabled (on);
+  ui->lblInput2Measured->setEnabled (on);
+  ui->cbSyncToSelected->setEnabled (on);
+  ui->leSyncCall->setEnabled (on);
+  // The offset is the switch itself, so it stays usable as long as there is a
+  // first source to mirror.
+  ui->sbInput2Offset->setEnabled (!m_config.audio_input_device ().isNull ());
+
+  // The pane goes when there is nothing to show in it - an empty column of
+  // decodes is not information. The panel underneath stays: the watch boxes and
+  // the readout have nothing to do with the second source, and the controls
+  // that do are greyed, not gone.
+  ui->in2_decodes_title_label->setVisible (on);
+  ui->in2_decodes_headings_label->setVisible (on);
+  ui->decodedTextBrowser_in2->setVisible (on);
+  ui->signal_meter_2_widget->setVisible (on);
+  ui->in2_decodes_title_label->setText (mirrored
+      ? tr ("Band Activity   Input 2   (Input 1, shifted)")
+      : tr ("Band Activity   Input 2"));
+}
+
+// Change something in Windows' sound settings - the default playback device,
+// a card plugged in or out - and the streams this program opened at startup can
+// be left pointing at the wrong endpoint. The symptom is transmit audio going
+// to the speakers instead of the radio, and until now the only cure was to
+// restart the program.
+//
+// Nothing is reopened behind the operator's back: the change is noticed, said
+// plainly, and put right only if he asks. Transmitting or tuning, it waits -
+// the fingerprint is not even taken, so the next quiet moment raises it again.
+void MainWindow::checkAudioDevicesChanged ()
+{
+  if (m_transmitting || m_tune) return;
+
+  auto const fingerprint = [] (QAudio::Mode mode) {
+      QString f {mode == QAudio::AudioOutput
+                 ? QAudioDeviceInfo::defaultOutputDevice ().deviceName ()
+                 : QAudioDeviceInfo::defaultInputDevice ().deviceName ()};
+      for (auto const& d : QAudioDeviceInfo::availableDevices (mode)) f += "|" + d.deviceName ();
+      return f;
+    };
+  auto const outputs = fingerprint (QAudio::AudioOutput);
+  auto const inputs = fingerprint (QAudio::AudioInput);
+
+  bool const output_changed = !m_audioOutputFingerprint.isEmpty () && outputs != m_audioOutputFingerprint;
+  bool const input_changed = !m_audioInputFingerprint.isEmpty () && inputs != m_audioInputFingerprint;
+  bool const first_look = m_audioOutputFingerprint.isEmpty ();
+  m_audioOutputFingerprint = outputs;
+  m_audioInputFingerprint = inputs;
+  if (first_look || (!output_changed && !input_changed)) return;
+
+  betaLog (QString {"windows audio devices changed (%1%2)"}
+           .arg (output_changed ? "output" : "")
+           .arg (input_changed ? (output_changed ? " and input" : "input") : ""));
+
+  if (MessageBox::Yes == MessageBox::query_message (
+          this, tr ("Windows sound devices have changed"),
+          tr ("The list of sound devices changed while the program was running - "
+              "a card was added or removed, or the default one was switched.\n\n"
+              "Streams opened before that can be left on the wrong card: transmit "
+              "audio going to the speakers instead of the radio is the usual sign.\n\n"
+              "Re-open the audio now? Only what changed is touched."),
+          QString {}, MessageBox::Yes | MessageBox::No))
+    {
+      reopenAudioDevices (output_changed, input_changed);
+    }
+}
+
+// Re-open the streams on the cards the settings name, found afresh by name at
+// this moment - which is the whole point, since it is the earlier lookup that
+// went stale. Only the side that changed is touched: reopening a capture stream
+// costs a second or two of deafness, and a period caught mid-decode loses it.
+void MainWindow::reopenAudioDevices (bool output, bool inputs)
+{
+  if (m_transmitting || m_tune) return;
+
+  auto const by_name = [] (QAudio::Mode mode, QString const& name) {
+      for (auto const& d : QAudioDeviceInfo::availableDevices (mode))
+        {
+          if (d.deviceName () == name) return d;
+        }
+      return QAudioDeviceInfo {};
+    };
+
+  if (output && !m_config.audio_output_device ().isNull ())
+    {
+      auto const device = by_name (QAudio::AudioOutput, m_config.audio_output_device ().deviceName ());
+      if (!device.isNull ())
+        {
+          Q_EMIT initializeAudioOutputStream (device
+                                              , AudioDevice::Mono == m_config.audio_output_channel () ? 1 : 2
+                                              , m_tx_audio_buffer_frames);
+          betaLog ("audio re-opened: output on " + device.deviceName ());
+        }
+      else
+        {
+          betaLog ("audio re-open: output card \"" + m_config.audio_output_device ().deviceName ()
+                   + "\" is no longer there");
+        }
+    }
+
+  if (inputs && !m_config.audio_input_device ().isNull ())
+    {
+      auto const device = by_name (QAudio::AudioInput, m_config.audio_input_device ().deviceName ());
+      if (!device.isNull ())
+        {
+          Q_EMIT startAudioInputStream (device, m_rx_audio_buffer_frames, m_detector
+                                        , m_downSampleFactor, m_config.audio_input_channel ());
+          betaLog ("audio re-opened: input 1 on " + device.deviceName ());
+        }
+    }
+
+  if (inputs && !m_config.audio_input_2_device ().isNull ())
+    {
+      auto const device = by_name (QAudio::AudioInput, m_config.audio_input_2_device ().deviceName ());
+      if (!device.isNull ())
+        {
+          Q_EMIT startAudioInputStream2 (device, m_rx_audio_buffer_frames, m_detector2
+                                         , m_downSampleFactor, m_config.audio_input_2_channel ());
+          betaLog ("audio re-opened: input 2 on " + device.deviceName ());
+        }
+    }
+}
 
 // What this program costs: processor and memory for the window and both of its
 // decoders added together, not for the machine as a whole. The decoding happens
@@ -6110,6 +6262,10 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
             m_actedOn.clear ();
             m_dec1Done = false;
             m_dedupePeriod = period;
+            // The marks keep one period of history behind the current one, so a
+            // slot does not go blank the moment a new period starts and its
+            // decodes have not arrived yet.
+            m_keys2Freq.clear ();
           }
         // Strip the decoder's own hints, a1/q0 and a trailing ?, which say how
         // a message was recovered rather than what it says. The two decoders
@@ -6138,6 +6294,7 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
             if (secondary)
               {
                 m_keys2.insert (key);
+                m_keys2Freq.insert (key, decodedtext0.frequencyOffset ());
                 // A station both sources heard gives the delay between them
                 // directly. Only counted when the first source got there first,
                 // which is the usual order since it starts decoding earlier.
@@ -16482,10 +16639,12 @@ QString MainWindow::leftJustifyAppendage (QString message, QString appendage)
 void MainWindow::updateBandActivityTitleLabel()
 {
   auto const mode = m_bandActivityRawView ? tr("Raw View") : tr("Band Activity");
+  // The source is named outside the link, so clicking the title still toggles
+  // the raw view and nothing else.
   ui->lh_decodes_title_label->setText(
       tr("<a href=\"toggle_ba_view\" style=\"text-decoration:none; color:inherit;\">"
          "%1"
-         "</a>")
+         "</a>   Input 1")
           .arg(mode));
 }
 

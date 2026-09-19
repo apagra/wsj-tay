@@ -83,6 +83,11 @@ public:
   void setSuperFox(bool b);
   void setSuperHound(bool b);
   void setRxBand(QString band);
+  // Audio frequencies where the second receive source decoded something in
+  // the last two periods. Marked on the scale, since there is no waterfall
+  // for that source and its stations are otherwise invisible here.
+  void setIn2Marks (QVector<int> const& marks);
+  void setIn2MarksEnabled (bool);
   void setReference(bool b) {m_bReference = b;}
   bool Reference() const {return m_bReference;}
   void setQ65_Sync(bool b) {m_bQ65_Sync = b;}
@@ -114,6 +119,11 @@ private:
 
   void MakeFrequencyStrs();
   int XfromFreq(float f);
+  // Width of one signal in the current mode, in Hz - the same figure the
+  // program already uses to draw its own bandwidth marker.
+  float signalBandwidth () const;
+  QVector<int> m_in2Marks;
+  bool m_in2MarksOn {true};
   float FreqfromX(int x);
 
 

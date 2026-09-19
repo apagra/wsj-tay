@@ -632,6 +632,17 @@ private:
   // Processor load of the machine and memory held by this program and both
   // decoders, refreshed on a slow timer of its own.
   void updateResourceUsage ();
+  // Windows shuffles its audio devices when the default one changes, and the
+  // transmit stream can be left pointing at the wrong endpoint. This notices
+  // and reopens it, so changing the default no longer means restarting.
+  // The second source: its card, whether it runs at all, and the window
+  // dressed to match. Empty Input 2 mirrors Input 1 once an offset is set.
+  QAudioDeviceInfo secondSourceDevice () const;
+  void applySecondSource ();
+  void checkAudioDevicesChanged ();
+  // Re-open the audio on the cards the settings name, looked up afresh. Only
+  // the side asked for: a capture stream reopened mid-period costs decodes.
+  void reopenAudioDevices (bool output, bool inputs);
   // The station being worked, and its grid, are marked in every Band Activity
   // pane. Upstream marked the first one only, which with two panes reads as
   // two different stations.
@@ -1088,6 +1099,13 @@ private:
   QProgressDialog m_optimizingProgress;
   QTimer m_heartbeat;
   QTimer m_resourceTimer;     // drives the CPU and memory readout
+  QTimer m_audioWatchTimer;   // watches for audio devices coming and going
+  QString m_audioOutputFingerprint;
+  QString m_audioInputFingerprint;
+  QString m_secondSourceOpen;   // card the second capture is on, empty when off
+  // Where the second source heard each message this period, so that at the end
+  // of it the ones the first source missed can be marked on the waterfall.
+  QHash<QString, int> m_keys2Freq;
   MessageClient * m_messageClient;
   MessageServer * m_udp_server;  // UDP server for receiving Configure messages on port 2237
   PSKReporter m_psk_Reporter;
