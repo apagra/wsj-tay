@@ -71,6 +71,7 @@ ReporterClient::ReporterClient (QObject * parent)
   connect (socket_, &QWebSocket::disconnected, this, [this] () {
       auto const was = connected_;
       connected_ = false;
+      listeners_ = 0;
       ping_timer_->stop ();
       send_timer_->stop ();
       queue_.clear ();
@@ -153,6 +154,24 @@ void ReporterClient::say_hello ()
   o["grid"] = grid_;
   o["version"] = version_;
   o["code"] = code_;
+  o["band"] = where_band_;
+  o["mode"] = where_mode_;
+  o["dial"] = where_dial_;
+  send (o);
+}
+
+void ReporterClient::set_where (QString const& band, QString const& mode, int dial)
+{
+  if (band == where_band_ && mode == where_mode_ && dial == where_dial_) return;
+  where_band_ = band;
+  where_mode_ = mode;
+  where_dial_ = dial;
+  if (!connected_) return;              // it travels with the next hello
+  QJsonObject o;
+  o["t"] = "where";
+  o["band"] = band;
+  o["mode"] = mode;
+  o["dial"] = dial;
   send (o);
 }
 
@@ -194,6 +213,19 @@ void ReporterClient::report_period (QString const& call, QString const& grid,
   if (!sending_ || !connected_ || call.isEmpty () || lines.isEmpty ()) return;
   Q_UNUSED (version);
   if (call.toUpper () != call_ || grid != grid_) set_identity (call, grid, version_);
+
+  // Held, not thrown away: the moment somebody starts listening the whole
+  // period goes up at once, so they are not made to wait for the next one.
+  if (!listeners_)
+    {
+      held_band_ = band;
+      held_mode_ = mode;
+      held_dial_ = dial;
+      held_period_ = period;
+      held_lines_ = lines;
+      return;
+    }
+  held_lines_.clear ();
 
   // Each pass hands over the whole period so far; only what has not gone up
   // yet goes now.
@@ -250,6 +282,20 @@ void ReporterClient::on_message (QString const& text)
   if (!doc.isObject ()) return;
   auto const m = doc.object ();
   auto const t = m["t"].toString ();
+
+  if (t == "listeners")
+    {
+      auto const was = listeners_;
+      listeners_ = m["n"].toInt ();
+      if (!was && listeners_ && !held_lines_.isEmpty ())
+        {
+          auto const lines = held_lines_;
+          held_lines_.clear ();
+          report_period (call_, grid_, held_band_, held_mode_, held_dial_, version_,
+                         held_period_, lines);
+        }
+      return;
+    }
 
   if (t == "welcome" || t == "roster")
     {

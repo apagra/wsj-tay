@@ -66,6 +66,11 @@ public:
   // Who this station is, said to the server on every connection.
   void set_identity (QString const& call, QString const& grid, QString const& version);
 
+  // Where this station is listening: band, mode and dial. Sent when it
+  // changes and not otherwise, because a station with no audience sends no
+  // decodes and would otherwise sit on the roster with no band beside it.
+  void set_where (QString const& band, QString const& mode, int dial);
+
   // Whether this station's decodes are sent. Off unless the operator says so.
   void set_sending (bool);
   bool sending () const { return sending_; }
@@ -132,6 +137,18 @@ private:
   int last_count_ {0};          // ...and lines already shown are not shown again
   QString sent_period_;         // how much of the current period has gone up
   int sent_count_ {0};
+  // Nobody listening means nothing to send. The server says how many are, and
+  // until one appears the period is only held here: waking the server for an
+  // audience of none is somebody's money spent on nothing.
+  int listeners_ {0};
+  QString where_band_;
+  QString where_mode_;
+  int where_dial_ {0};
+  QString held_band_;
+  QString held_mode_;
+  QString held_period_;
+  int held_dial_ {0};
+  QVector<ReporterLine> held_lines_;
   QList<QJsonObject> queue_;    // reports waiting their turn
   qint64 last_send_ms_ {0};
   int retry_ms_;

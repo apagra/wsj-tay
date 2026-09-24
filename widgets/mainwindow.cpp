@@ -5789,6 +5789,7 @@ void MainWindow::reportProgress ()
       if (t.period != m_lastPeriod1) continue;
       if (t.report1.size () <= t.reportedLines) return;
       t.reportedLines = t.report1.size ();
+      m_reporter->set_where (m_lastBand, m_mode, int (m_freqNominal));
       m_reporter->report_period (m_config.my_callsign (), m_config.my_grid (),
                                  m_lastBand, m_mode, int (m_freqNominal),
                                  wsj_tay_version (), t.period, t.report1);
@@ -6245,8 +6246,12 @@ void MainWindow::rebuildReporterMenu (QVector<ReporterStation> const& stations)
   for (auto const& s : stations)
     {
       auto const mine = s.call == m_config.my_callsign ();
-      auto const label = tr ("%1   %2 %3   %4 msgs%5")
-        .arg (s.call, -10).arg (s.band).arg (s.mode).arg (s.count)
+      // A station sends only while somebody is listening to it, so a count of
+      // none means "not sending", not "hearing nothing". A dash says that
+      // without claiming a silent band.
+      auto const heard = s.count ? tr ("%1 msgs").arg (s.count) : tr ("-");
+      auto const label = tr ("%1   %2 %3   %4%5")
+        .arg (s.call, -10).arg (s.band).arg (s.mode).arg (heard, -8)
         .arg (mine ? tr ("   (this station)") : QString {});
       auto * act = menu->addAction (label);
       act->setCheckable (true);
