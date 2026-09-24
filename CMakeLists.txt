@@ -291,6 +291,8 @@ set (wsjtx_CXXSRCS
   widgets/about.cpp
   widgets/wsjtayhelp.cpp
   widgets/resourceusage.cpp
+  widgets/winvolume.cpp
+  widgets/reporterclient.cpp
   widgets/astro.cpp
   widgets/messageaveraging.cpp
   widgets/activeStations.cpp
@@ -1643,7 +1645,9 @@ target_link_libraries (wsjtx Qt5::SerialPort wsjt_cxx wsjt_qt wsjt_qtmm ${FFTW3_
 # psapi: the CPU and memory readout in the status strip asks Windows how much
 # this program and its two decoders are actually using.
 if (WIN32)
-  target_link_libraries (wsjtx psapi)
+  # ole32: the level sliders beside the meters drive the Windows recording
+  # level of each capture card through Core Audio.
+  target_link_libraries (wsjtx psapi ole32)
 endif ()
 
 # make a library for WSJT-X UDP servers

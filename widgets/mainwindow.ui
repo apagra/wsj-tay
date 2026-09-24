@@ -493,6 +493,34 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QSlider" name="volSlider_1">
+               <property name="minimumSize">
+                <size>
+                 <width>18</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>18</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Windows recording level of the card feeding input 1. This is the same level the sound settings show, so it changes there too and for every other program using that card. Greyed out when the driver offers no volume control.</string>
+               </property>
+               <property name="minimum">
+                <number>0</number>
+               </property>
+               <property name="maximum">
+                <number>100</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+              </widget>
+             </item>
             </layout>
           </item>
           <item>
@@ -1285,6 +1313,34 @@ QLabel[oob=&quot;true&quot;] {
                </property>
                <property name="frameShadow">
                 <enum>QFrame::Sunken</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSlider" name="volSlider_2">
+               <property name="minimumSize">
+                <size>
+                 <width>18</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>18</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Windows recording level of the card feeding input 2. This is the same level the sound settings show, so it changes there too and for every other program using that card. Greyed out when the driver offers no volume control.</string>
+               </property>
+               <property name="minimum">
+                <number>0</number>
+               </property>
+               <property name="maximum">
+                <number>100</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
                </property>
               </widget>
              </item>
@@ -5186,6 +5242,7 @@ list. The list can be maintained in Settings (F2).</string>
     <addaction name="actionColors"/>
     <addaction name="actionSWL_Mode"/>
     <addaction name="separator"/>
+    <addaction name="actionWaterfallOnTop"/>
     <addaction name="cbDockWF"/>
     <addaction name="actionCall_info"/>
     <addaction name="actionDark_mode"/>
@@ -5338,6 +5395,11 @@ list. The list can be maintained in Settings (F2).</string>
      <string>Configurations</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menuReporter">
+    <property name="title">
+     <string>MY_NET</string>
+    </property>
+   </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>Tools</string>
@@ -5363,6 +5425,7 @@ list. The list can be maintained in Settings (F2).</string>
    <addaction name="menuDecode"/>
    <addaction name="menuSave"/>
    <addaction name="menuTools"/>
+   <addaction name="menuReporter"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -5896,6 +5959,17 @@ list. The list can be maintained in Settings (F2).</string>
    </property>
    <property name="toolTip">
     <string>Copy selected line</string>
+   </property>
+  </action>
+  <action name="actionWaterfallOnTop">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Waterfall at the top</string>
+   </property>
+   <property name="toolTip">
+    <string>Put the waterfall above the decoded text instead of below it. It can also be dragged there by its title bar.</string>
    </property>
   </action>
   <action name="cbDockWF">

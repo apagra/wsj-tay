@@ -2,7 +2,10 @@
 
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QPointer>
+#include <QPushButton>
+#include <QSettings>
 #include <QString>
 #include <QTextBrowser>
 #include <QVBoxLayout>
@@ -119,8 +122,7 @@ also fills the <b>call</b> box in the panel below, for Sync.</p>
 <p><b>The station being worked is marked in both panes</b> &mdash; red on the
 callsign, blue on its grid, if <i>Settings &gt; General</i> has the DX Call and
 DX Grid highlights switched on. Upstream marked the first pane only, which with
-two columns reads as two different stations. The same goes for the underline on
-stations reporting you to PSK Reporter.</p>
+two columns reads as two different stations.</p>
 
 <p><b>Erase</b> clears both Band Activity panes together, as do the context
 menu's Clear and the periodic clear.</p>
@@ -141,6 +143,20 @@ the QSO moving, and nothing is ever sent twice.</p>
 on the same scale so the two can be compared directly. A meter falls to zero
 when audio stops arriving, so a source that has died shows as dead rather than
 holding its last reading.</p>
+
+<p>Beside each meter is a <b>thin slider</b>, and it holds no level of its own:
+what it shows, and what it sets, is the <b>Windows recording level of that
+card</b> - the very slider the sound settings show. Move it here and it moves
+there; move it there and this one follows within a couple of seconds. Being the
+card's own level, it applies to every other program using that card, and it
+stays where you left it after this one closes.</p>
+
+<p>A slider is <b>greyed</b> when there is nothing to set: either the driver
+offers no level at all, or the source arrives through a <b>virtual cable</b>.
+Those cables carry audio through untouched and ignore any level put on them -
+measured here: set to 60%, read back as 60%, and not a decibel of difference to
+what the decoder heard, at either end of the cable. For a source like that the
+level lives in the program producing the audio, and nowhere else.</p>
 
 <hr />
 
@@ -252,8 +268,13 @@ number.</p>
 <h2>The waterfall</h2>
 
 <p>It is docked inside the main window rather than being a separate window, and
-it has no close or float buttons, so it cannot be shut by accident. Drag its
-title bar to move it above or below the text panes.</p>
+it has no close or float buttons, so it cannot be shut by accident. No other
+WSJT program does this: there the waterfall is a window of its own, to be
+found, raised and arranged every session.</p>
+
+<p><i>View &gt; Waterfall at the top</i> puts it above the decoded text; untick
+it and it goes back below. Dragging it there by its title bar does the same
+thing and moves the tick with it, and where you left it is where it opens.</p>
 
 <p>The <b>X</b> that WSJT-Z put beside <i>Controls</i> is gone. It cleared the
 waterfall, but sitting where it did it read as a close button on a dock that
@@ -291,7 +312,7 @@ the two together, and <b>Shift-click</b> still sets transmit.</p>
 
 <hr />
 
-<h2>When Windows moves the sound cards about</h2>
+<h2>When you change the sound sources in Windows</h2>
 
 <p>Change the default playback device in Windows - speakers to a virtual cable,
 say - and the stream this program opened at startup can be left pointing at the
@@ -307,6 +328,67 @@ lookup made at startup that went stale.</p>
 tuning: if the cards change mid-transmission, the question waits for the next
 quiet moment. Only the side that changed is touched, so an output that moved does
 not cost you a period of decodes on the inputs.</p>
+
+<hr />
+
+<h2>MY_NET - borrowing another station's ears</h2>
+
+<p>Two receivers on different aerials hear different things; two receivers in
+different towns hear far more. MY_NET lets WSJ-TAY stations share what
+they decode, live, so the second pane can be fed by somebody else's receiver
+instead of a second sound card.</p>
+
+<p><b>Sharing what you hear</b> is on from the start and is turned off in
+<i>Settings &gt; Reporting</i>. Only Input 1 is ever sent - the receiver on the
+aerial here - with your callsign, locator, band, dial frequency and mode. It
+goes out as each decoding pass finishes, so it is on its way the moment the
+lines appear in your own pane. Nothing is stored anywhere: a station leaves the
+list a minute and a half after it stops reporting, and the lines are forgotten a
+few minutes later.</p>
+
+<p><b>Your code.</b> Anybody can see that you are on the air and on what band;
+nobody hears your decodes without your code. It is at the top of the
+<b>MY_NET</b> menu - click it to copy it - and it is yours to give to whoever
+you like, by telephone, by message or on the air. The program makes a new one
+each time it starts: close it and everybody who was listening is let go, and
+needs the new code to come back. A line that only drops for a moment comes back
+with the same code, and they carry on without noticing.</p>
+
+<p><b>Listening to somebody</b> takes two steps. In <i>Settings &gt; Audio</i>
+set <b>Input 2</b> to <b>MY_NET</b> - it sits in the list beside the
+sound cards, because Input 2 has never meant "second card", it means where the
+second stream comes from. Then open the <b>MY_NET</b> menu beside
+<i>Tools</i>, choose a station and type the code its operator gave you. The menu
+shows who is on the air, on what band and mode, and how many messages their last
+period held. A wrong code is said in the pane; so is a station that has been
+restarted since, which means asking for its new code. The choice is not
+remembered between sessions: tomorrow that station may not be there.</p>
+
+<p>Frequencies travel as dial plus offset, so a station on another dial still
+lands in the right place on your scale. The <b>DT</b> column, though, was
+measured by <i>their</i> clock, not yours.</p>
+
+<p>If they leave your band or change mode the lines stop, with a line saying so,
+and start again when you are back on the same ground - decodes from another band
+would put green marks on your waterfall for signals that are not there. If they
+go off the air, the pane says that too.</p>
+
+<hr />
+
+<h2>Stepping aside before transmitting</h2>
+
+<p><i>Settings &gt; WSJT-Z &gt; Misc &gt; Step aside if someone is on my
+transmit frequency</i>, on unless you turn it off.</p>
+
+<p>You cannot hear the station you are sitting on, and two signals in one slot
+usually means neither is decoded. With this on, the moment before the
+transmitter keys up the program looks at whether anybody has been heard on your
+transmit frequency and, if so, moves to the nearest clear one - the same search
+the <b>Auto</b> button has always done, run at the moment it matters. The range
+comes from the Wide/Narrow setting beside it: 200-3000 Hz or 500-2000 Hz.</p>
+
+<p>It moves <b>only</b> when the slot is really taken, so a clear frequency is
+left alone, in a QSO or calling CQ, and the status line says what happened.</p>
 
 <hr />
 
@@ -326,7 +408,7 @@ still appears in both panes. That is the point of them.</p>
 
 <hr />
 
-<h2>Smaller things</h2>
+<h2>Small conveniences</h2>
 
 <ul>
 <li><b>Tools &gt; Windows sound settings</b> opens the Windows Sound dialog
@@ -335,10 +417,6 @@ without hunting through Windows' own settings. MSHV does exactly the same.</li>
 <li>The program is named <tt>wsj-tay</tt>, so it has its own settings, its own
 lock file and its own decoder shared memory, and never disturbs a stock WSJT-X,
 JTDX, MSHV or WSJT-Z on the same machine. No <tt>--rig-name</tt> needed.</li>
-<li>Every session appends to <tt>wsj-tay-beta.log</tt>, beside the log and the
-settings under <i>File &gt; Open log directory</i>: which settings file was
-read, the callsign, all three sound cards, the rig, and any failure of the
-second decoder. A session that ends without "closed normally" died.</li>
 </ul>
 
 <hr />
@@ -349,10 +427,9 @@ second decoder. A session that ends without "closed normally" died.</li>
 <li>Both decoders share every parameter but their samples, so the second source
 is attributed to the first's dial frequency. Keep both receivers on the same
 frequency.</li>
-<li>There is no waterfall for the second source. Its level meter and its decodes
-are all you see of it.</li>
-<li>A decode addressed to you that both sources hear still reaches the spotting
-report twice.</li>
+<li>The second source has no spectrum of its own: the waterfall is drawn from
+Input 1's audio. What you see of Input 2 is its level meter, its decodes in the
+second pane, and the green marks on the scale showing where they fell.</li>
 <li>Only one program at a time can hold the rig: OmniRig, or a serial port for
 CAT. Running this alongside another WSJT-X, JTDX or WSJT-Z leaves whichever
 started second without rig control - it looks like a broken install but is not.
@@ -366,9 +443,8 @@ angle brackets, on a standard FT8 sub-band, does not yet fill in the call.</li>
 
 <h2>Thanks</h2>
 
-<p>To <b>SV1AER</b>, for the hours of testing on his own station and for the logs
-he sent back. The fault that mattered most in this program - the second decoder
-dying quietly part way through a session - was found in his ALL.TXT, not here.</p>
+<p>To <b>SV1AER</b>, for the many hours of testing on his own station, for all
+the logs, and for the experiments we ran together.</p>
 
 <p><small>WSJ-TAY is free software under the GNU General Public License,
 version 3. It comes with absolutely no warranty. If you pass a copy to anyone,
@@ -377,7 +453,7 @@ you owe them the source as well. See <i>Help &gt; About WSJ-TAY</i>.</small></p>
 <hr />
 <hr />
 
-<h1>&Sigma;&tau;&alpha; &epsilon;&lambda;&lambda;&eta;&nu;&iota;&kappa;ά</h1>
+<h1>Ελληνικά</h1>
 
 <h2>WSJ-TAY %1</h2>
 
@@ -486,6 +562,22 @@ Settings &gt; General.</p>
 ίδια κλίμακα ώστε να συγκρίνονται. Πέφτει στο μηδέν όταν σταματήσει να έρχεται
 ήχος, οπότε μια πηγή που πέθανε φαίνεται αμέσως.</p>
 
+<p>Δίπλα σε κάθε μπάρα υπάρχει ένα <b>λεπτό μπάρακι</b>, που δεν κρατάει δική
+του ένταση: αυτό που δείχνει, και αυτό που ρυθμίζει, είναι η <b>στάθμη
+εγγραφής των Windows</b> για εκείνη την κάρτα &mdash; ο ίδιος ακριβώς διακόπτης
+που βλέπεις στις ρυθμίσεις ήχου. Το κουνάς εδώ, κουνιέται εκεί&middot; το
+αλλάζεις εκεί, το ακολουθεί εδώ μέσα σε δυο δευτερόλεπτα. Επειδή είναι η στάθμη
+της ίδιας της κάρτας, ισχύει και για κάθε άλλο πρόγραμμα που την ακούει, και
+μένει εκεί που την άφησες αφού κλείσεις αυτό.</p>
+
+<p>Το μπάρακι <b>γκριζάρει</b> όταν δεν υπάρχει τίποτα να ρυθμιστεί: είτε ο
+οδηγός της κάρτας δεν δίνει ένταση, είτε η πηγή έρχεται από <b>εικονικό
+καλώδιο</b>. Τα καλώδια αυτά περνάνε τον ήχο αυτούσιο και αγνοούν όποια στάθμη
+τους βάλεις &mdash; μετρημένο: στο 60%, διαβάζεται 60%, και ούτε ένα decibel
+διαφορά σε αυτό που άκουσε ο αποκωδικοποιητής, σε καμία από τις δύο άκρες του
+καλωδίου. Σε τέτοια πηγή η στάθμη ρυθμίζεται στο πρόγραμμα που παράγει τον ήχο,
+και πουθενά αλλού.</p>
+
 <hr />
 
 <h2>Το ταμπλό κάτω από το παράθυρο In 2</h2>
@@ -548,8 +640,12 @@ Settings &gt; General.</p>
 
 <h2>Ο καταρράκτης</h2>
 
-<p>Είναι καρφωμένος μέσα στο κεντρικό παράθυρο και δεν έχει κουμπιά κλεισίματος,
-ώστε να μην κλείνει κατά λάθος. Δείχνει μόνο την πρώτη πηγή. Το <b>X</b> που
+<p>Είναι καρφωμένος μέσα στο κεντρικό παράθυρο — κανένα άλλο WSJT δεν
+το κάνει αυτό, εκεί ο καταρράκτης είναι ξεχωριστό παράθυρο που το ψάχνεις
+κάθε φορά &mdash; και δεν έχει κουμπιά κλεισίματος, ώστε να μην κλείνει κατά
+λάθος. Το <i>View &gt; Waterfall at the top</i> τον βάζει πάνω από τα decode,
+ξετσεκάρεις και γυρίζει κάτω. Το ίδιο κάνει και το σϮρσιμο από τη μπάρα
+του, και μένει εκεί που τον άφησες. Δείχνει μόνο την πρώτη πηγή. Το <b>X</b> που
 είχε βάλει δίπλα στο Controls το WSJT-Z είναι κρυμμένο &mdash; καθάριζε τον
 καταρράκτη, αλλά διαβαζόταν σαν κουμπί κλεισίματος.</p>
 
@@ -584,7 +680,7 @@ Settings &gt; General.</p>
 
 <hr />
 
-<h2>Όταν τα Windows κουνάνε τις κάρτες ήχου</h2>
+<h2>Όταν αλλάξεις τις πηγές ήχου από τα Windows</h2>
 
 <p>Αλλάζεις την προεπιλεγμένη συσκευή αναπαραγωγής στα Windows &mdash; από τα
 ηχεία σε εικονικό καλώδιο, ας πούμε &mdash; και η ροή που άνοιξε το πρόγραμμα
@@ -604,6 +700,71 @@ Settings &gt; General.</p>
 
 <hr />
 
+<h2>MY_NET &mdash; δανείζεσαι τα αυτιά άλλου σταθμού</h2>
+
+<p>Δύο δέκτες σε διαφορετικές κεραίες ακούνε διαφορετικά πράγματα&middot; δύο
+δέκτες σε διαφορετικές πόλεις, πολύ περισσότερα. Το MY_NET επιτρέπει
+στους σταθμούς WSJ-TAY να μοιράζονται ζωντανά ό,τι αποκωδικοποιούν, ώστε το
+δεύτερο παράθυρο να το τροφοδοτεί ο δέκτης κάποιου άλλου αντί για δεύτερη
+κάρτα ήχου.</p>
+
+<p><b>Το μοίρασμα</b> είναι ανοιχτό εξ αρχής και σβήνει από το
+<i>Settings &gt; Reporting</i>. Φεύγει <b>μόνο η είσοδος 1</b> &mdash; ο δέκτης
+που κάθεται στην κεραία εδώ &mdash; με callsign, locator, μπάντα, συχνότητα και
+mode. Στέλνεται καθώς τελειώνει κάθε πέρασμα του αποκωδικοποιητή, δηλαδή την
+ώρα ακριβώς που οι γραμμές εμφανίζονται στο δικό σου παράθυρο. Τίποτα δεν
+αποθηκεύεται: ο σταθμός φεύγει από τη λίστα ενάμισι λεπτό αφότου σωπάσει, και οι
+γραμμές ξεχνιούνται λίγα λεπτά μετά.</p>
+
+<p><b>Ο κωδικός σου.</b> Όλοι βλέπουν ότι είσαι στον αέρα και σε ποια μπάντα&middot;
+τις λήψεις σου δεν τις βλέπει κανείς χωρίς τον κωδικό σου. Είναι πρώτος στο μενού
+<b>MY_NET</b> &mdash; με κλικ αντιγράφεται &mdash; και τον δίνεις σε όποιον θέλεις,
+στο τηλέφωνο, σε μήνυμα ή στον αέρα. Το πρόγραμμα βγάζει καινούργιο κάθε φορά που
+ανοίγει: όταν το κλείσεις, όσοι σε άκουγαν βγαίνουν και χρειάζονται τον νέο για να
+ξαναμπούν. Αν απλώς πέσει στιγμιαία η σύνδεση, ο κωδικός μένει ίδιος και εκείνοι
+συνεχίζουν χωρίς να το καταλάβουν.</p>
+
+<p><b>Για να ακούσεις κάποιον</b> θέλει δύο βήματα. Στο <i>Settings &gt;
+Audio</i> βάλε το <b>Input 2</b> σε <b>MY_NET</b> &mdash; κάθεται στη
+λίστα δίπλα στις κάρτες, γιατί το Input 2 ποτέ δεν σήμαινε &laquo;δεύτερη
+κάρτα&raquo;, σημαίνει από πού έρχεται η δεύτερη είσοδος. Μετά άνοιξε το μενού
+<b>MY_NET</b> δίπλα στο <i>Tools</i>, διάλεξε σταθμό και γράψε τον κωδικό που σου
+έδωσε ο χειριστής του. Το μενού δείχνει ποιοι είναι στον αέρα, σε ποια μπάντα και
+mode, και πόσα μηνύματα είχε η τελευταία τους περίοδος. Λάθος κωδικός γράφεται στο
+παράθυρο&middot; το ίδιο κι αν ο σταθμός ξανάνοιξε το πρόγραμμα, οπότε ζητάς τον νέο
+του κωδικό. Η επιλογή <b>δεν θυμάται</b> από μέρα σε μέρα:
+αύριο μπορεί εκείνος ο σταθμός να μην είναι εκεί.</p>
+
+<p>Οι συχνότητες ταξιδεύουν ως dial συν offset, οπότε σταθμός με άλλο dial
+πέφτει σωστά στη δική σου κλίμακα. Η στήλη <b>DT</b> όμως είναι μετρημένη με
+<i>το δικό του</i> ρολόι, όχι το δικό σου.</p>
+
+<p>Αν φύγει από τη μπάντα σου ή αλλάξει mode, οι γραμμές σταματάνε με μήνυμα, και
+ξαναρχίζουν όταν ξαναβρεθείτε στα ίδια &mdash; decode από άλλη μπάντα θα έβαζαν
+πράσινα σημάδια στον καταρράκτη σου για σήματα που δεν υπάρχουν εκεί. Αν βγει
+από τον αέρα, το παράθυρο το λέει κι αυτό.</p>
+
+<hr />
+
+<h2>Βήμα στο πλάι πριν την εκπομπή</h2>
+
+<p><i>Settings &gt; WSJT-Z &gt; Misc &gt; Step aside if someone is on my
+transmit frequency</i>, αναμμένο εκτός αν το σβήσεις.</p>
+
+<p>Δεν ακούς τον σταθμό πάνω στον οποίο κάθεσαι, και δύο σήματα στην ίδια θέση
+συνήθως σημαίνει ότι δεν αποκωδικοποιείται κανένα. Με αυτό ανοιχτό, τη στιγμή
+πριν ανοίξει ο πομπός, το πρόγραμμα κοιτάει αν έχει ακουστεί κάποιος στη
+συχνότητα εκπομπής σου και, αν ναι, σε πηγαίνει στην πλησιέστερη ελεύθερη
+&mdash; την ίδια αναζήτηση που κάνει το κουμπί <b>Auto</b>, στη στιγμή που
+μετράει. Το εύρος το ορίζει η ρύθμιση Wide/Narrow δίπλα: 200-3000 Hz ή
+500-2000 Hz.</p>
+
+<p>Μετακινείται <b>μόνο</b> όταν η θέση είναι πράγματι πιασμένη &mdash; σε
+καθαρή συχνότητα μένει εκεί που είναι, μέσα σε QSO ή καλώντας CQ &mdash; και η
+γραμμή κατάστασης λέει τι έγινε.</p>
+
+<hr />
+
 <h2>Μία γραμμή ανά μήνυμα</h2>
 
 <p><b>Decode &gt; Hide FT8 dupe messages</b> κάνει πια αυτό που λέει το όνομά
@@ -615,18 +776,13 @@ Settings &gt; General.</p>
 
 <hr />
 
-<h2>Μικρότερα</h2>
+<h2>Μικρές ευκολίες</h2>
 
 <ul>
 <li><b>Tools &gt; Windows sound settings</b>: ανοίγει το παράθυρο Ήχου των
 Windows κατευθείαν στην καρτέλα Εγγραφή ή Αναπαραγωγή.</li>
 <li>Το πρόγραμμα ονομάζεται <tt>wsj-tay</tt>, οπότε έχει δικές του ρυθμίσεις και
 δεν ενοχλεί κανένα WSJT-X, JTDX, MSHV ή WSJT-Z στο ίδιο μηχάνημα.</li>
-<li>Κάθε συνεδρία γράφει στο <tt>wsj-tay-beta.log</tt>, δίπλα στις ρυθμίσεις
-(<i>File &gt; Open log directory</i>): ποιο αρχείο ρυθμίσεων διαβάστηκε,
-callsign, κάρτες ήχου, ραδιόφωνο, και κάθε αποτυχία του δεύτερου
-αποκωδικοποιητή. Συνεδρία που τελειώνει χωρίς &laquo;closed normally&raquo;
-πέθανε.</li>
 </ul>
 
 <hr />
@@ -636,9 +792,10 @@ callsign, κάρτες ήχου, ραδιόφωνο, και κάθε αποτυ�
 <ul>
 <li>Οι δύο αποκωδικοποιητές μοιράζονται κάθε παράμετρο εκτός από τα δείγματα,
 οπότε η δεύτερη πηγή αποδίδεται στη συχνότητα της πρώτης.</li>
-<li>Δεν υπάρχει waterfall για τη δεύτερη πηγή.</li>
-<li>Decode που απευθύνεται σε εσένα και το ακούνε και οι δύο πηγές φτάνει δύο
-φορές στα δίκτυα spotting.</li>
+<li>Η δεύτερη πηγή δεν έχει δικό της φάσμα: ο καταρράκτης ζωγραφίζεται
+από τον ήχο της Input 1. Από την Input 2 βλέπεις τη μπάρα στάθμης, τα decode
+της στο δεύτερο παράθυρο, και τα πράσινα ίχνη που δείχνουν πού έπεσαν πάνω
+στην κλίμακα.</li>
 <li>Μόνο ένα πρόγραμμα τη φορά κρατάει το ραδιόφωνο (OmniRig ή σειριακή CAT). Οι
 κάρτες ήχου είναι άλλο θέμα: τα Windows τις μοιράζουν, και αυτό το πρόγραμμα
 βασίζεται σε αυτό για να ταΐζει δύο αποκωδικοποιητές από μία κάρτα.</li>
@@ -650,15 +807,27 @@ callsign, κάρτες ήχου, ραδιόφωνο, και κάθε αποτυ�
 
 <h2>Ευχαριστίες</h2>
 
-<p>Στον <b>SV1AER</b>, για τις ώρες δοκιμών στον δικό του σταθμό και για τα log
-που έστειλε πίσω. Το σοβαρότερο σφάλμα αυτού του προγράμματος &mdash; ο δεύτερος
-αποκωδικοποιητής που πέθαινε αθόρυβα στη μέση της συνεδρίας &mdash; βρέθηκε στο
-δικό του ALL.TXT, όχι εδώ.</p>
+<p>Στον <b>SV1AER</b>, για τις πάρα πολλές ώρες δοκιμών στον δικό του
+σταθμό, για όλα τα log, και για τα πειράματα που κάναμε μαζί.</p>
 
 <p><small>Ελεύθερο λογισμικό υπό την GNU General Public License v3, χωρίς καμία
 εγγύηση. Αν το δώσεις σε κάποιον, του χρωστάς και τον πηγαίο κώδικα. Δες
 <i>Help &gt; About WSJ-TAY</i>.</small></p>
 )HELP";
+}
+
+namespace
+{
+  // The page holds both languages, one after the other, divided by the heading
+  // that opens the Greek half. Splitting there gives two documents without
+  // keeping the text twice or letting the two drift apart.
+  QString half (bool greek)
+  {
+    auto const whole = QString {help_html}.arg (wsj_tay_version ());
+    auto const cut = whole.indexOf (QLatin1String {"<h1>"});
+    if (cut < 0) return whole;             // no divider: show what there is
+    return greek ? whole.mid (cut) : whole.left (cut);
+  }
 }
 
 void show_wsj_tay_help (QWidget * parent)
@@ -675,12 +844,39 @@ void show_wsj_tay_help (QWidget * parent)
 
       auto * text = new QTextBrowser {dialog};
       text->setOpenExternalLinks (true);
-      text->setHtml (QString {help_html}.arg (wsj_tay_version ()));
+
+      // Which language this operator reads is not a thing to ask twice, so it
+      // is remembered - the one preference this window has.
+      QSettings settings;
+      auto * const english = new QPushButton {QString {"English"}, dialog};
+      auto * const greek = new QPushButton {QString {"\u0395\u03bb\u03bb\u03b7\u03bd\u03b9\u03ba\u03ac"}, dialog};
+      english->setCheckable (true);
+      greek->setCheckable (true);
+
+      auto const show_language = [text, english, greek] (bool in_greek) {
+        english->setChecked (!in_greek);
+        greek->setChecked (in_greek);
+        text->setHtml (half (in_greek));
+        text->moveCursor (QTextCursor::Start);
+        QSettings {}.setValue ("HelpInGreek", in_greek);
+      };
+
+      QObject::connect (english, &QPushButton::clicked, dialog,
+                        [show_language] () { show_language (false); });
+      QObject::connect (greek, &QPushButton::clicked, dialog,
+                        [show_language] () { show_language (true); });
+      show_language (settings.value ("HelpInGreek", false).toBool ());
+
+      auto * const bar = new QHBoxLayout;
+      bar->addWidget (english);
+      bar->addWidget (greek);
+      bar->addStretch ();
 
       auto * buttons = new QDialogButtonBox {QDialogButtonBox::Close, dialog};
       QObject::connect (buttons, &QDialogButtonBox::rejected, dialog, &QDialog::close);
 
       auto * layout = new QVBoxLayout {dialog};
+      layout->addLayout (bar);
       layout->addWidget (text);
       layout->addWidget (buttons);
 

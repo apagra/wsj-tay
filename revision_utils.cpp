@@ -55,7 +55,7 @@ QString version (bool include_patch)
 
 QString wsj_tay_version ()
 {
-  return QStringLiteral ("v1.0.0");
+  return QStringLiteral ("v2.1.0");
 }
 
 QString program_title (QString const& revision)

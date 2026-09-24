@@ -103,8 +103,7 @@ In 2 pane sends the report *that* receiver measured.
 **The station being worked is marked in both panes** — red on the callsign,
 blue on its grid, if Settings → General has the DX Call and DX Grid highlights
 switched on. Upstream marked the first pane only, which with two columns reads
-as two different stations. The same goes for the underline on stations
-reporting us to PSK Reporter.
+as two different stations.
 
 **Erase** clears both Band Activity panes together, as do the context menu's
 Clear and the periodic clear.
@@ -127,6 +126,20 @@ last reading.
 The reading under the bar carries its own unit (`68 dB`). Upstream kept the unit
 in a second label beside the number, and the pair needed more width than a meter
 standing beside a text pane can spare — the `dB` came out sliced in half.
+
+Beside each meter is a **thin slider**, and it holds no level of its own: what it
+shows, and what it sets, is the **Windows recording level of that card** — the
+very slider the sound settings show. Move it here and it moves there; move it
+there and this one follows within a couple of seconds. Being the card's own
+level, it applies to every other program using that card, and it stays where you
+left it after this one closes.
+
+A slider is **greyed** when there is nothing to set: either the driver offers no
+level, or the source arrives through a **virtual cable**. Those cables carry
+audio through untouched and ignore any level put on them — measured here: set to
+60%, read back as 60%, and not a decibel of difference to what the decoder heard,
+at either end of the cable. For a source like that the level lives in the program
+producing the audio, and nowhere else.
 
 ### The panel under the In 2 pane
 
@@ -226,9 +239,13 @@ unchanged to whoever called next and everyone would be given the same number.
 
 ## The waterfall
 
-Docked inside the main window rather than floating in one of its own, and with
-no close or float button, so it cannot be shut by accident and leave the program
-looking broken. Its title bar still drags it above or below the text panes.
+Docked inside the main window rather than floating in one of its own — no other
+WSJT program does this — and with no close or float button, so it cannot be shut
+by accident and leave the program looking broken.
+
+*View → Waterfall at the top* puts it above the decoded text, unticking it puts
+it back below, and dragging it by its title bar does the same and moves the tick
+with it. Where you left it is where it opens.
 
 It shows the first source only — but not quite. **Green marks** show where the
 **second** receiver heard a station that **the first one did not**: on the
@@ -298,7 +315,7 @@ What stayed is what the licence and good manners ask for:
   link, none of which this program can answer for. Attribution to SQ9FVE stays
   where the licence asks for it: in About WSJ-TAY and in `AUTHORS`.
 
-## When Windows moves the sound cards about
+## When you change the sound sources in Windows
 
 Change the default playback device in Windows and the stream opened at startup
 can be left pointing at the old card — transmit audio to the speakers while the
@@ -312,6 +329,57 @@ quiet moment. Only the side that changed is touched, so a moved output costs no
 decodes on the inputs.
 
 ---
+
+## MY_NET - borrowing a friend's receiver
+
+Two aerials at one station hear differently; two stations in different towns hear
+far more. MY_NET lets WSJ-TAY stations share what they decode, live, so the
+second pane can be fed by somebody else's receiver instead of a second sound
+card — and for the many operators who have no second receiver, that is what
+finally gives that pane a purpose.
+
+**Sharing** is on from the start and is turned off in *Settings → Reporting*.
+Only Input 1 is ever sent: the receiver on the aerial here, with callsign,
+locator, band, dial frequency and mode. It goes out as each decoding pass
+finishes, so it leaves at the moment the lines appear in your own pane — measured
+on the air at the period's end, not a second later.
+
+**Listening** takes two steps, because they answer two different questions. In
+*Settings → Audio* set **Input 2** to **MY_NET**: that is *where* the second
+stream comes from, and it is remembered. Then the **MY_NET** menu beside *Tools*
+lists who is on the air, on what band and mode, and how many messages their last
+period held: that is *whose*, and it is deliberately **not** remembered, because
+tomorrow that station may not be there.
+
+**Codes.** The roster is public — who is on, on what band — but listening to a
+station needs its code, which its operator reads out. Your own is the first item
+in the menu, and a click copies it. A code lives as long as the program: made at
+startup, kept across a dropped line, new after a restart, which lets every
+listener go. There is no button to change it and no way to recover an old one.
+
+Frequencies travel as dial plus offset, so a station on another dial still lands
+in the right place on your scale. The **DT** column, though, was measured by
+*their* clock. If they leave your band or change mode the lines stop, with a line
+saying so, and start again when you are back on the same ground — decodes from
+another band would put green marks on your waterfall for signals that are not
+there. If they go off the air, the pane says that too.
+
+---
+
+## Stepping aside before transmitting
+
+*Settings → WSJT-Z → Misc → Step aside if someone is on my transmit frequency*,
+on unless you turn it off.
+
+You cannot hear the station you are sitting on, and two signals in one slot
+usually means neither is decoded. With this on, the moment before the
+transmitter keys up, the program checks whether anybody has been heard on your
+transmit frequency and, if so, moves to the nearest clear one — the same search
+the **Auto** button has always done, run at the moment it matters. Range comes
+from the Wide/Narrow setting beside it: 200-3000 Hz or 500-2000 Hz.
+
+It moves **only** when the slot is really taken, so a clear frequency is left
+alone, in a QSO or calling CQ, and the status line says what happened.
 
 ## One line per message
 
@@ -329,7 +397,7 @@ appears in both panes. That is the point of them.
 
 ---
 
-## Smaller differences
+## Small conveniences
 
 - The title names this fork and the station it belongs to. Attribution to
   SQ9FVE and K1JT lives in Help → About WSJ-TAY and the `AUTHORS` file, which
@@ -340,10 +408,6 @@ appears in both panes. That is the point of them.
 - **Tools → Windows sound settings** opens the Windows Sound dialog straight on
   the Recording or the Playback tab, so a card's level can be set without
   hunting through Windows' own settings. MSHV does exactly the same.
-- Every session appends to `wsj-tay-beta.log`, beside the log and the settings
-  under File → Open log directory: which settings file was read, the callsign,
-  all three sound cards, the rig, and any failure of the second decoder. A
-  session that ends without `closed normally` died.
 
 ---
 
@@ -352,10 +416,9 @@ appears in both panes. That is the point of them.
 - Both decoders share every parameter but their samples, so the second source is
   attributed to the first's dial frequency. Keep both receivers on the same
   frequency.
-- No waterfall for the second source. Its level meter and its decodes are all
-  you see of it.
-- A decode addressed to you that both sources hear still reaches the spotting
-  report twice.
+- The second source has no spectrum of its own: the waterfall is drawn from
+  Input 1's audio. What you see of Input 2 is its level meter, its decodes in
+  the second pane, and the green marks on the scale showing where they fell.
 - Only one program at a time can hold the rig: OmniRig, or a serial port for CAT.
   Running this alongside another WSJT-X, JTDX or WSJT-Z leaves whichever started
   second without rig control — it looks like a broken install but is not. Sound
@@ -366,6 +429,5 @@ appears in both panes. That is the point of them.
 
 ## Thanks
 
-To **SV1AER**, for the hours of testing on his own station and for the logs he
-sent back. The fault that mattered most here — the second decoder dying quietly
-part way through a session — was found in his `ALL.TXT`, not on this machine.
+To **SV1AER**, for the many hours of testing on his own station, for all the
+logs, and for the experiments we ran together.

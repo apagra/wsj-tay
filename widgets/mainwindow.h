@@ -45,6 +45,7 @@
 #include "astro.h"
 #include "MessageBox.hpp"
 #include "Network/NetworkAccessManager.hpp"
+#include "reporterclient.h"
 
 #define NUM_JT4_SYMBOLS 206                //(72+31)*2, embedded sync
 #define NUM_JT65_SYMBOLS 126               //63 data + 63 sync
@@ -628,10 +629,21 @@ private:
   // and again whenever it dies while the first one is still running.
   void startDecoder2 ();
   void recordSourceDelay (float delta);
-  void emitPeriodSummary ();
   // Processor load of the machine and memory held by this program and both
   // decoders, refreshed on a slow timer of its own.
   void updateResourceUsage ();
+  void refreshVolumeSliders ();
+  void applyReporterSettings ();
+  void rebuildReporterMenu (QVector<ReporterStation> const& stations);
+  void showReporterLines (QString const& call, QString const& period, int dial,
+                          QString const& band, QString const& mode,
+                          QVector<ReporterLine> const& lines);
+  void noteInPane2 (QString const& text);
+  QVector<ReporterStation> m_reporterRoster;
+  QString m_reporterBandSaid;   // the last band or mode difference already said
+  int m_reporterDial {0};       // the followed station's dial, as its last period reported it
+  QStringList m_periodsDone;    // periods already summed up, so a late line cannot reopen one
+  ReporterClient * m_reporter {nullptr};
   // Windows shuffles its audio devices when the default one changes, and the
   // transmit stream can be left pointing at the wrong endpoint. This notices
   // and reopens it, so changing the default no longer means restarting.
@@ -927,16 +939,37 @@ private:
   QProcessEnvironment m_jt9_env;
   int m_decoder2Restarts {0};
   QByteArray m_dedupePeriod;    // UTC stamp the messages below belong to
-  // message -> DT as the first source reported it, so a duplicate arriving
-  // from the second can be both suppressed and used to measure the delay
-  // between the two sources
-  QHash<QString, float> m_keys1;   // messages the first source decoded, with DT
-  QSet<QString> m_keys2;           // messages the second source decoded
   QSet<QString> m_actedOn;         // messages already acted on this period
+
+  // What each source heard in one period, filed under that period's own UTC
+  // stamp. The two decoders finish at different moments - the second one often
+  // after the first has already started reporting the next period - so a single
+  // set of counters for "the current period" loses whichever answer arrives
+  // last. These do not: a late answer still lands on the period it belongs to.
+  struct PeriodTally
+  {
+    QString period;                  // UTC stamp the decoders tagged it with
+    QHash<QString, float> keys1;     // message -> DT, from the first source
+    QHash<QString, int> keys2Freq;   // message -> audio frequency, from the second
+    // The same period as it goes out to MY_NET: absolute frequencies,
+    // because the station reading it may be on another dial. First source only.
+    QVector<ReporterLine> report1;
+    bool done1 {false};              // that source has finished this period
+    bool done2 {false};
+    int reportedLines {0};           // how much of it has gone to MY_NET
+  };
+  QVector<PeriodTally> m_tallies;
+  QString m_lastPeriod1;        // period each decoder is currently reporting on,
+  QString m_lastPeriod2;        // since <DecodeFinished> carries no stamp itself
+  MainWindow::PeriodTally * tallyFor (QString const& period);
+  void noteSourceFinished (bool secondary);
+  void noteSourceMovedOn (QString const& period, bool secondary);
+  void reportProgress ();
+  void flushTallies ();
+  void emitPeriodSummary (PeriodTally const& tally);
   QList<float> m_dtDeltas;      // recent DT differences, second minus first
   double m_offsetBeforeSync {0.};  // offset to restore when Sync is turned off
   bool m_clickedInput2Pane {false};  // double click came from the In 2 pane
-  bool m_dec1Done {false};      // first source finished this period's last pass
 
   void updateSecondSourceMeter ();
   NonInheritingProcess p1;
@@ -1111,9 +1144,6 @@ private:
   QString m_audioOutputFingerprint;
   QString m_audioInputFingerprint;
   QString m_secondSourceOpen;   // card the second capture is on, empty when off
-  // Where the second source heard each message this period, so that at the end
-  // of it the ones the first source missed can be marked on the waterfall.
-  QHash<QString, int> m_keys2Freq;
   MessageClient * m_messageClient;
   MessageServer * m_udp_server;  // UDP server for receiving Configure messages on port 2237
   PSKReporter m_psk_Reporter;
@@ -1159,7 +1189,7 @@ private:
   void transmit (double snr = 99.);
   void rigFailure (QString const& reason);
   void pskSetLocal ();
-  void pskPost(DecodedText const& decodedtext);
+  void pskPost (DecodedText const& decodedtext, bool secondary = false);
   void displayDialFrequency ();
   void transmitDisplay (bool);
   void processMessage(DecodedText const& message, Qt::KeyboardModifiers = Qt::NoModifier);

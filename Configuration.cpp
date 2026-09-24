@@ -750,6 +750,22 @@ private:
   bool id_after_73_;
   bool tx_QSY_allowed_;
   bool spot_to_psk_reporter_;
+  // Whether the second receive source is reported as well. Off unless the
+  // operator says otherwise: PSK Reporter files every spot under this station's
+  // callsign and locator, and a second receiver that is not here - a remote SDR,
+  // somebody else's web receiver - would be putting reception at the wrong place
+  // on the map that the whole hobby reads for propagation.
+  bool spot_input_2_to_psk_reporter_;
+  // MY_NET: whether this station shares its decodes, and whether the
+  // second pane is fed from another station instead of a sound card. Sharing is
+  // on from the start, as PSK Reporter spotting is: a network of this kind is
+  // worth what its numbers are, and what travels is public radio traffic that
+  // already goes to PSK Reporter anyway. The first receiver only, and the box
+  // in Settings > Reporting turns it off for anyone who would rather not.
+  bool send_to_reporter_;
+  bool input_2_from_reporter_;
+  bool next_input_2_from_reporter_;
+  QString reporter_url_;
   bool psk_reporter_band_activity_;
   bool psk_reporter_tcpip_;
   bool decoded_text_psk_highlight_;
@@ -836,6 +852,9 @@ private:
   bool dbgBoth_;
   bool autoFreqNarrow_;
   bool autoFreqWide_;
+  // Whether to step aside when somebody is already on this station's transmit
+  // frequency. Off unless asked: moving on the air is the operator's business.
+  bool stepAsideBeforeTx_;
   bool wdResetAnywhere_;
   int padding_;
   double wd_FT8_;
@@ -918,6 +937,15 @@ double Configuration::txDelay() const {return m_->txDelay_;}
 qint32 Configuration::RxBandwidth() const {return m_->RxBandwidth_;}
 bool Configuration::id_after_73 () const {return m_->id_after_73_;}
 bool Configuration::tx_QSY_allowed () const {return m_->tx_QSY_allowed_;}
+bool Configuration::input_2_from_reporter () const {return m_->input_2_from_reporter_;}
+bool Configuration::send_to_reporter () const {return m_->send_to_reporter_;}
+QString Configuration::reporter_url () const {return m_->reporter_url_;}
+
+bool Configuration::spot_input_2_to_psk_reporter () const
+{
+  return m_->spot_input_2_to_psk_reporter_;
+}
+
 bool Configuration::spot_to_psk_reporter () const
 {
   // rig must be open and working to spot externally
@@ -1021,6 +1049,7 @@ bool Configuration::dbgFile() const {return m_->dbgFile_;}
 bool Configuration::dbgBoth() const {return m_->dbgBoth_;}
 bool Configuration::autoFreqNarrow() const {return m_->autoFreqNarrow_;}
 bool Configuration::autoFreqWide() const {return m_->autoFreqWide_;}
+bool Configuration::stepAsideBeforeTx () const {return m_->stepAsideBeforeTx_;}
 bool Configuration::wdResetAnywhere() const {return m_->wdResetAnywhere_;}
 int Configuration::padding() const {return m_->padding_;}
 double Configuration::wd_FT8() const {return m_->wd_FT8_;}
@@ -1753,6 +1782,8 @@ void Configuration::impl::initialize_models ()
   next_audio_input_device_ = audio_input_device_;
   next_audio_input_channel_ = audio_input_channel_;
   next_audio_input_2_device_ = audio_input_2_device_;
+  next_input_2_from_reporter_ = input_2_from_reporter_;
+  ui_->reporter_send_check_box->setChecked (send_to_reporter_);
   next_audio_input_2_channel_ = audio_input_2_channel_;
   next_audio_output_device_ = audio_output_device_;
   next_audio_output_channel_ = audio_output_channel_;
@@ -1791,6 +1822,8 @@ void Configuration::impl::initialize_models ()
   ui_->CW_id_after_73_check_box->setChecked (id_after_73_);
   ui_->tx_QSY_check_box->setChecked (tx_QSY_allowed_);
   ui_->psk_reporter_check_box->setChecked (spot_to_psk_reporter_);
+  ui_->psk_reporter_input_2_check_box->setChecked (spot_input_2_to_psk_reporter_);
+  ui_->reporter_send_check_box->setChecked (send_to_reporter_);
   ui_->psk_reporter_band_activity_check_box->setChecked (psk_reporter_band_activity_);
   ui_->psk_reporter_band_activity_check_box->setEnabled (spot_to_psk_reporter_);
   connect (ui_->psk_reporter_check_box, &QCheckBox::toggled,
@@ -1922,6 +1955,7 @@ void Configuration::impl::initialize_models ()
   ui_->rb_dbg_Screen->setChecked(dbgScreen_);
   ui_->rb_autoFreqNarrow->setChecked(autoFreqNarrow_);
   ui_->rb_autoFreqWide->setChecked(autoFreqWide_);
+  ui_->cb_stepAsideBeforeTx->setChecked(stepAsideBeforeTx_);
   ui_->cb_WD_resetAnywhere->setChecked(wdResetAnywhere_);
   ui_->sb_padding->setValue(padding_);
   ui_->sb_WD_FT8->setValue(wd_FT8_);
@@ -2036,6 +2070,11 @@ void Configuration::impl::read_settings ()
   // most stations that would happily report never do. Anyone who turns it off
   // keeps it off - this is the default, not an override.
   spot_to_psk_reporter_ = settings_->value ("PSKReporter", true).toBool ();
+  spot_input_2_to_psk_reporter_ = settings_->value ("PSKReporterInput2", false).toBool ();
+  send_to_reporter_ = settings_->value ("ReporterSend", true).toBool ();
+  input_2_from_reporter_ = settings_->value ("Input2FromReporter", false).toBool ();
+  next_input_2_from_reporter_ = input_2_from_reporter_;
+  reporter_url_ = settings_->value ("ReporterUrl", "https://reporter.sv1tay.com").toString ();
   psk_reporter_band_activity_ = settings_->value ("PSKReporterBandActivity", false).toBool ();
   psk_reporter_tcpip_ = settings_->value ("PSKReporterTCPIP", false).toBool ();
   id_after_73_ = settings_->value ("After73", false).toBool ();
@@ -2213,6 +2252,7 @@ void Configuration::impl::read_settings ()
   dbgBoth_ = settings_->value("dbgBoth").toBool();
   autoFreqNarrow_ = settings_->value("autoFreqNarrow").toBool();
   autoFreqWide_ = settings_->value("autoFreqWide", true).toBool();
+  stepAsideBeforeTx_ = settings_->value("stepAsideBeforeTx", true).toBool();
   dbgFile_ = settings_->value("dbgFile").toBool();
   wdResetAnywhere_ = settings_->value("wdResetAnywhere", true).toBool();
   padding_ = settings_->value("padding",42).toInt ();
@@ -2265,6 +2305,20 @@ void Configuration::impl::find_audio_devices ()
       next_audio_input_2_channel_ = AudioDevice::fromString (settings_->value ("AudioInput2Channel", "Mono").toString ());
       update_audio_channels (ui_->sound_input_2_combo_box, ui_->sound_input_2_combo_box->currentIndex (), ui_->sound_input_2_channel_combo_box, false);
       ui_->sound_input_2_channel_combo_box->setCurrentIndex (next_audio_input_2_channel_);
+    }
+
+  // That list is filled only when it is dropped down - enumerating the cards
+  // takes long enough to be worth deferring - so a dialog opened cold showed an
+  // empty box however clearly a source had been chosen. Put the choice in it.
+  if (!ui_->sound_input_2_combo_box->count ())
+    {
+      auto const label = next_input_2_from_reporter_
+        ? QString {"MY_NET"}
+        : next_audio_input_2_device_.isNull () ? tr ("None")
+                                               : next_audio_input_2_device_.deviceName ();
+      ui_->sound_input_2_combo_box->addItem (
+          label, QVariant::fromValue (audio_info_type {next_audio_input_2_device_, {}}));
+      ui_->sound_input_2_combo_box->setCurrentIndex (0);
     }
 
   //
@@ -2337,6 +2391,10 @@ void Configuration::impl::write_settings ()
   settings_->setValue ("MonitorOFF", monitor_off_at_startup_);
   settings_->setValue ("MonitorLastUsed", monitor_last_used_);
   settings_->setValue ("PSKReporter", spot_to_psk_reporter_);
+  settings_->setValue ("PSKReporterInput2", spot_input_2_to_psk_reporter_);
+  settings_->setValue ("ReporterSend", send_to_reporter_);
+  settings_->setValue ("Input2FromReporter", input_2_from_reporter_);
+  settings_->setValue ("ReporterUrl", reporter_url_);
   settings_->setValue ("PSKReporterBandActivity", psk_reporter_band_activity_);
   settings_->setValue ("PSKReporterTCPIP", psk_reporter_tcpip_);
   settings_->setValue ("DecodedTextHighlightUnderline", decoded_text_psk_highlight_);
@@ -2437,6 +2495,7 @@ void Configuration::impl::write_settings ()
   settings_->setValue("dbgBoth", dbgBoth_);
   settings_->setValue("autoFreqNarrow", autoFreqNarrow_);
   settings_->setValue("autoFreqWide", autoFreqWide_);
+  settings_->setValue("stepAsideBeforeTx", stepAsideBeforeTx_);
   settings_->setValue("wdResetAnywhere", wdResetAnywhere_);
   settings_->setValue("padding", padding_);
   settings_->setValue("wd_FT8", wd_FT8_);
@@ -2810,6 +2869,8 @@ void Configuration::impl::accept ()
   }
 
   {
+    next_input_2_from_reporter_ =
+      ui_->sound_input_2_combo_box->currentText () == QLatin1String {"MY_NET"};
     auto const& selected_device = ui_->sound_input_2_combo_box->currentData ().value<audio_info_type> ().first;
     // Said once, then left alone: the same card on both inputs is a real
     // technique, not a mistake, but only with a time offset on Input 2.
@@ -2877,6 +2938,12 @@ void Configuration::impl::accept ()
       audio_input_2_channel_ = next_audio_input_2_channel_;
       restart_sound_input_2_device_ = true;
     }
+  if (input_2_from_reporter_ != next_input_2_from_reporter_)
+    {
+      input_2_from_reporter_ = next_input_2_from_reporter_;
+      restart_sound_input_2_device_ = true;   // the card, if any, is let go
+    }
+  send_to_reporter_ = ui_->reporter_send_check_box->isChecked ();
   if (audio_output_device_ != next_audio_output_device_ || next_audio_output_device_.isNull ())
     {
       audio_output_device_ = next_audio_output_device_;
@@ -2900,6 +2967,7 @@ void Configuration::impl::accept ()
   RTTY_exchange_= ui_->RTTY_Exchange->text ().toUpper ();
   Contest_Name_= ui_->Contest_Name->text ().toUpper ();
   spot_to_psk_reporter_ = ui_->psk_reporter_check_box->isChecked ();
+  spot_input_2_to_psk_reporter_ = ui_->psk_reporter_input_2_check_box->isChecked ();
   psk_reporter_band_activity_ = ui_->psk_reporter_band_activity_check_box->isChecked ();
   psk_reporter_tcpip_ = ui_->psk_reporter_tcpip_check_box->isChecked ();
   id_interval_ = ui_->CW_id_interval_spin_box->value ();
@@ -3053,6 +3121,7 @@ void Configuration::impl::accept ()
   dbgBoth_ = ui_->rb_dbg_Both->isChecked();
   autoFreqNarrow_ = ui_->rb_autoFreqNarrow->isChecked();
   autoFreqWide_ = ui_->rb_autoFreqWide->isChecked();
+  stepAsideBeforeTx_ = ui_->cb_stepAsideBeforeTx->isChecked();
   wdResetAnywhere_ = ui_->cb_WD_resetAnywhere->isChecked();
   padding_ = ui_->sb_padding->value();
   wd_FT4_ = ui_->sb_WD_FT4->value();
@@ -4453,7 +4522,13 @@ void Configuration::impl::load_audio_devices (QAudio::Mode mode, QComboBox * com
       // A null QAudioDeviceInfo is what the rest of the program already reads as
       // "no second source", so the entry needs no special case anywhere else.
       combo_box->addItem (tr ("None"), QVariant::fromValue (audio_info_type {QAudioDeviceInfo {}, {}}));
-      if (device->isNull ()) current_index = 0;
+      // Not a card at all: the decodes of another station, taken from
+      // MY_NET. Input 2 has never really meant "second sound card" -
+      // it means where the second stream comes from - so it belongs in this
+      // list rather than in a setting of its own somewhere else.
+      combo_box->addItem (QString {"MY_NET"},
+                          QVariant::fromValue (audio_info_type {QAudioDeviceInfo {}, {}}));
+      if (device->isNull ()) current_index = next_input_2_from_reporter_ ? 1 : 0;
     }
 
   auto const& devices = QAudioDeviceInfo::availableDevices (mode);

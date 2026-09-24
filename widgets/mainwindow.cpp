@@ -47,6 +47,7 @@
 #include <QUdpSocket>
 #include <QAbstractItemView>
 #include <QInputDialog>
+#include <QClipboard>
 #if QT_VERSION >= QT_VERSION_CHECK (5, 15, 0)
 #include <QRandomGenerator>
 #endif
@@ -85,6 +86,7 @@
 #include "about.h"
 #include "wsjtayhelp.h"
 #include "resourceusage.h"
+#include "winvolume.h"
 #include "messageaveraging.h"
 #include "activeStations.h"
 #include "colorhighlighting.h"
@@ -551,6 +553,43 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   connect (&m_decoder2WatchTimer, &QTimer::timeout, this, &MainWindow::checkSecondDecoder);
   m_decoder2WatchTimer.start (2000);
 
+  // MY_NET: this station's decodes go out as they are found, and another
+  // station's can come back to fill the second pane - given that station's
+  // code. Nothing happens until the operator asks for it in the settings.
+  m_reporter = new ReporterClient {this};
+  connect (m_reporter, &ReporterClient::trouble, this, [this] (QString const& what) {
+      showStatusMessage (what);
+    });
+  connect (m_reporter, &ReporterClient::roster_ready, this, &MainWindow::rebuildReporterMenu);
+  connect (m_reporter, &ReporterClient::lines_ready, this, &MainWindow::showReporterLines);
+  // Still followed while it is gone: if only its line dropped, it comes back
+  // with the same code and the pane carries on by itself.
+  connect (m_reporter, &ReporterClient::station_gone, this, [this] (QString const& call) {
+      noteInPane2 (tr (" %1 went off the air ").arg (call));
+    });
+  connect (m_reporter, &ReporterClient::station_back, this, [this] (QString const& call) {
+      noteInPane2 (tr (" %1 is back ").arg (call));
+    });
+  connect (m_reporter, &ReporterClient::denied, this, [this] (QString const& call, QString const& reason) {
+      auto const why = reason == "wrong code" ? tr ("wrong code")
+        : reason == "the code has changed" ? tr ("restarted, ask for the new code")
+        : reason;
+      noteInPane2 (tr (" %1: %2 ").arg (call, why));
+      showStatusMessage (tr ("MY_NET: %1 - %2").arg (call, why));
+      applySecondSource ();
+    });
+  applyReporterSettings ();
+
+  // The level sliders beside the meters. They carry no value of their own: what
+  // they show is the Windows recording level of the card that source listens
+  // to, and what they set is that same level.
+  connect (ui->volSlider_1, &QSlider::valueChanged, this, [this] (int v) {
+      set_capture_volume_percent (m_config.audio_input_device ().deviceName (), v);
+    });
+  connect (ui->volSlider_2, &QSlider::valueChanged, this, [this] (int v) {
+      set_capture_volume_percent (secondSourceDevice ().deviceName (), v);
+    });
+
   ui->cb_autoModeSwitch->setContextMenuPolicy (Qt::CustomContextMenu);
   update_auto_mode_switch_widget ();
   m_watchdogAnchorUtc = QDateTime::currentDateTimeUtc ();
@@ -728,6 +767,17 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_wideGraphDock->setFeatures (QDockWidget::DockWidgetMovable);
   m_wideGraphDock->setWidget (m_wideGraph);
   addDockWidget (Qt::BottomDockWidgetArea, m_wideGraphDock);
+
+  // Above the decodes or below them, from the menu as well as by dragging the
+  // title bar. Whichever way it was moved, the tick and the dock agree.
+  connect (ui->actionWaterfallOnTop, &QAction::toggled, this, [this] (bool on) {
+      addDockWidget (on ? Qt::TopDockWidgetArea : Qt::BottomDockWidgetArea, m_wideGraphDock);
+      m_settings->setValue ("waterfallOnTop", on);
+    });
+  connect (m_wideGraphDock, &QDockWidget::dockLocationChanged, this,
+           [this] (Qt::DockWidgetArea area) {
+      ui->actionWaterfallOnTop->setChecked (Qt::TopDockWidgetArea == area);
+    });
 
   connect(m_wideGraph, SIGNAL(freezeDecode2(int)),this,SLOT(freezeDecode(int)));
   connect(m_wideGraph, SIGNAL(f11f12(int)),this,SLOT(bumpFqso(int)));
@@ -1879,6 +1929,7 @@ void MainWindow::writeSettings()
   m_settings->setValue ("filter_LOTW", ui->cb_f_LOTW->isChecked());
   m_settings->setValue ("CQonlyIncl73", ui->cbCQonlyIncl73->isChecked());
   m_settings->setValue ("dockWaterfall", ui->cbDockWF->isChecked());
+  m_settings->setValue ("waterfallOnTop", ui->actionWaterfallOnTop->isChecked ());
   m_settings->setValue ("showCallInfo", ui->actionCall_info->isChecked());
   m_settings->setValue ("filter_enabled", ui->cb_filtering->isChecked());
   m_settings->setValue ("darkMode", ui->actionDark_mode->isChecked());
@@ -2146,6 +2197,11 @@ void MainWindow::readSettings()
   ui->cb_IgnoreAfterWD->setChecked(m_settings->value("AutoIgnore",true).toBool());
   ui->cbCQonlyIncl73->setChecked(m_settings->value("CQonlyIncl73", false).toBool());
   ui->cbDockWF->setChecked(m_settings->value("dockWaterfall", false).toBool());
+  // After restoreState(), so this is the last word on where the waterfall sits.
+  auto const waterfall_on_top = m_settings->value ("waterfallOnTop", true).toBool ();
+  ui->actionWaterfallOnTop->setChecked (waterfall_on_top);
+  addDockWidget (waterfall_on_top ? Qt::TopDockWidgetArea : Qt::BottomDockWidgetArea,
+                 m_wideGraphDock);
   ui->actionCall_info->setChecked(m_settings->value("showCallInfo", false).toBool());
   ui->actionDark_mode->setChecked(m_settings->value("darkMode", false).toBool());
   ui->cb_filtering->setChecked(m_settings->value("filter_enabled", true).toBool());
@@ -2925,6 +2981,8 @@ void MainWindow::on_actionSettings_triggered()               //Setup Dialog
     enable_DXCC_entity (m_config.DXCC ());  // sets text window proportions and (re)inits the logbook
 
     pskSetLocal ();
+    // A new callsign or locator has to reach MY_NET too.
+    applyReporterSettings ();
     // this will close the connection to PSKReporter if it has been
     // disabled
     if (psk_on && !m_config.spot_to_psk_reporter ())
@@ -5679,10 +5737,141 @@ void MainWindow::recordSourceDelay (float delta)
 // both decoders: the first to finish its last pass, and the second to be idle.
 // A second source that is muted or absent never goes busy, so it does not hold
 // the line back.
-void MainWindow::emitPeriodSummary ()
+// The record for one period, made on demand and kept in the order the periods
+// arrived. Four is enough to cover a decoder running a period and a half behind.
+MainWindow::PeriodTally * MainWindow::tallyFor (QString const& period)
 {
-  if (!m_dec1Done || m_decoder2Busy) return;
-  if (m_keys1.isEmpty () && m_keys2.isEmpty ()) return;
+  for (auto & t : m_tallies) { if (t.period == period) return &t; }
+  while (m_tallies.size () >= 4)
+    {
+      // Never drop one silently: print what it managed to hear on the way out.
+      auto const& oldest = m_tallies.first ();
+      if (!oldest.keys1.isEmpty () || !oldest.keys2Freq.isEmpty ()) emitPeriodSummary (oldest);
+      m_tallies.removeFirst ();
+    }
+  PeriodTally fresh;
+  fresh.period = period;
+  m_tallies.append (fresh);
+  return &m_tallies.last ();
+}
+
+// A decoder that starts reporting a newer period has plainly finished with the
+// older ones, whatever it did or did not say about them. That is worth more than
+// the <DecodeFinished> report itself: the report carries no period of its own, so
+// after a stall it can be credited to a period the decoder has long left behind,
+// and then the periods after it wait for an answer that never comes and come out
+// in a batch of three when the queue drains. This does not depend on it.
+void MainWindow::noteSourceMovedOn (QString const& period, bool secondary)
+{
+  for (auto & t : m_tallies)
+    {
+      if (t.period == period) break;    // in arrival order: the rest are newer
+      (secondary ? t.done2 : t.done1) = true;
+    }
+  flushTallies ();
+}
+
+// FT8 decodes a period several times over: the first pass has most of the
+// messages out within a second of the period ending - which is why the left
+// pane fills at once - and the last pass, hunting the weakest signals, can take
+// ten seconds more. Waiting for that last pass to share anything made the whole
+// thing useless: by the time the other operator saw a station, the chance to
+// call it in the same cycle was gone.
+//
+// So each pass sends what it has. The period keeps its name, the server
+// replaces its lines, and whoever is listening gets the bulk immediately and
+// the stragglers as they are found.
+void MainWindow::reportProgress ()
+{
+  if (!m_reporter || m_lastPeriod1.isEmpty ()) return;
+  for (auto & t : m_tallies)
+    {
+      if (t.period != m_lastPeriod1) continue;
+      if (t.report1.size () <= t.reportedLines) return;
+      t.reportedLines = t.report1.size ();
+      m_reporter->report_period (m_config.my_callsign (), m_config.my_grid (),
+                                 m_lastBand, m_mode, int (m_freqNominal),
+                                 wsj_tay_version (), t.period, t.report1);
+      return;
+    }
+}
+
+// <DecodeFinished> says that a decoder has finished, not what it finished, so
+// the period is the one whose lines that decoder was last reporting.
+void MainWindow::noteSourceFinished (bool secondary)
+{
+  auto const& period = secondary ? m_lastPeriod2 : m_lastPeriod1;
+  if (!period.isEmpty ())
+    {
+      for (auto & t : m_tallies)
+        {
+          if (t.period != period) continue;
+          (secondary ? t.done2 : t.done1) = true;
+          // Out the moment the first decoder is done with it. The report holds
+          // nothing of the second source, so there is nothing to wait for - and
+          // waiting cost fourteen seconds a period, which is most of the gap
+          // the other operator has to act in.
+          if (!secondary && m_reporter && t.report1.size () > t.reportedLines)
+            {
+              // whatever the last pass added
+              betaLog (QString {"reporter: period %1 complete at %2 with %3 lines"}
+                       .arg (t.period)
+                       .arg (QDateTime::currentDateTimeUtc ().toString ("HHmmss"))
+                       .arg (t.report1.size ()));
+              t.reportedLines = t.report1.size ();
+              m_reporter->report_period (m_config.my_callsign (), m_config.my_grid (),
+                                         m_lastBand, m_mode, int (m_freqNominal),
+                                         wsj_tay_version (), t.period, t.report1);
+            }
+          break;
+        }
+    }
+  flushTallies ();
+}
+
+// A period is reported once both sources have finished with it. One that never
+// hears anything sends no lines and so can never be marked finished, which would
+// hold up everything behind it - so a period is also let go once two newer ones
+// have arrived, with whatever was counted by then.
+void MainWindow::flushTallies ()
+{
+  while (!m_tallies.isEmpty ())
+    {
+      auto const& oldest = m_tallies.first ();
+      // Waiting for the second decoder only makes sense when there is one. With
+      // a single card, or with the second pane fed from the network, it never
+      // answers - and waiting for it held every period back until two newer
+      // ones had overtaken it. That is a period and a half of delay on
+      // something that has to be out in seconds to be of any use to anybody.
+      // "Is there a second source", not "is there a second card": a station
+      // followed through MY_NET has no card, and asking the narrow
+      // question closed the period before its lines arrived - so the summary
+      // came out twice, once with In 2: 0 and once with In 1: 0.
+      bool const waits_for_second = secondSourceActive ();
+      bool const complete = oldest.done1 && (oldest.done2 || !waits_for_second);
+      bool const overtaken = m_tallies.size () > 2;
+      if (!complete && !overtaken) break;
+      // Why this period is being closed, so a summary that looks wrong can be
+      // read back instead of guessed at.
+      betaLog (QString {"summary %1: in1 %2 in2 %3, done1 %4 done2 %5, %6 (queue %7)"}
+               .arg (oldest.period)
+               .arg (oldest.keys1.size ()).arg (oldest.keys2Freq.size ())
+               .arg (oldest.done1).arg (oldest.done2)
+               .arg (complete ? "complete" : "overtaken")
+               .arg (m_tallies.size ()));
+      if (m_reporter && oldest.report1.size () > oldest.reportedLines)
+        {
+          m_reporter->report_period (m_config.my_callsign (), m_config.my_grid (),
+                                     m_lastBand, m_mode, int (m_freqNominal),
+                                     wsj_tay_version (), oldest.period, oldest.report1);
+        }
+      if (!oldest.keys1.isEmpty () || !oldest.keys2Freq.isEmpty ()) emitPeriodSummary (oldest);
+      m_tallies.removeFirst ();
+    }
+}
+
+void MainWindow::emitPeriodSummary (PeriodTally const& tally)
+{
   if (!secondSourceActive ()) return;
   // What the second receiver heard and the first did not: the blind spot, and
   // the only part of its traffic worth marking on a waterfall that shows the
@@ -5691,18 +5880,20 @@ void MainWindow::emitPeriodSummary ()
   if (m_wideGraph)
     {
       QVector<int> blind;
-      for (auto it = m_keys2Freq.cbegin (); it != m_keys2Freq.cend (); ++it)
+      for (auto it = tally.keys2Freq.cbegin (); it != tally.keys2Freq.cend (); ++it)
         {
-          if (!m_keys1.contains (it.key ())) blind.append (it.value ());
+          if (!tally.keys1.contains (it.key ())) blind.append (it.value ());
         }
       m_wideGraph->setIn2Marks (blind);
     }
 
+  m_periodsDone.append (tally.period);
+  while (m_periodsDone.size () > 8) m_periodsDone.removeFirst ();
+
   auto const line = QString {"In 1: %1   In 2: %2 "}
-    .arg (m_keys1.size ()).arg (m_keys2.size ()).rightJustified (40, '-');
+    .arg (tally.keys1.size ()).arg (tally.keys2Freq.size ()).rightJustified (40, '-');
   ui->decodedTextBrowser->insertLineSpacer (line);
   ui->decodedTextBrowser_in2->insertLineSpacer (line);
-  m_dec1Done = false;           // one line per period
 }
 
 
@@ -5763,6 +5954,10 @@ void MainWindow::checkSecondDecoder ()
 
   ui->decodedTextBrowser_in2->insertLineSpacer (
       QString {" input 2 stopped answering - restarted "}.rightJustified (40, '-'));
+
+  // Whatever period it was working on will never be reported; let it through
+  // with what the first source heard rather than hold up the ones behind it.
+  noteSourceFinished (true);
 }
 
 // Whether there is a second receive source at all. It is not the same question
@@ -5772,7 +5967,7 @@ void MainWindow::checkSecondDecoder ()
 // meter and no decoding whatsoever.
 bool MainWindow::secondSourceActive () const
 {
-  return !secondSourceDevice ().isNull ();
+  return !secondSourceDevice ().isNull () || m_config.input_2_from_reporter ();
 }
 
 // Which card the second decoder listens to, and whether it listens at all.
@@ -5821,7 +6016,8 @@ void MainWindow::applySecondSource ()
       m_secondSourceOpen = wanted;
     }
 
-  auto const on = !device.isNull ();
+  auto const from_network = m_config.input_2_from_reporter ();
+  auto const on = !device.isNull () || from_network;
   ui->signal_meter_2_label->setEnabled (on);
   ui->lblInput2Measured->setEnabled (on);
   ui->cbSyncToSelected->setEnabled (on);
@@ -5838,6 +6034,27 @@ void MainWindow::applySecondSource ()
   ui->in2_decodes_headings_label->setVisible (on);
   ui->decodedTextBrowser_in2->setVisible (on);
   ui->signal_meter_2_widget->setVisible (on);
+  if (from_network)
+    {
+      // Whose ears these are, and what they are tuned to, so it is never a
+      // guess what the pane is showing.
+      auto const call = m_reporter ? m_reporter->following () : QString {};
+      QString dial;
+      auto freq = m_reporterDial;
+      if (!freq)
+        {
+          for (auto const& s : m_reporterRoster) { if (s.call == call) { freq = s.dial; break; } }
+        }
+      if (freq) dial = QString {"   %1"}.arg (freq / 1000., 0, 'f', 3);
+      ui->in2_decodes_title_label->setText (call.isEmpty ()
+          ? tr ("Band Activity   Input 2   MY_NET - choose a station")
+          : tr ("Band Activity   Input 2   %1%2").arg (call).arg (dial));
+      // Nothing here is a sound card, so the controls that tune one are idle.
+      ui->signal_meter_2_widget->setVisible (false);
+      ui->signal_meter_2_label->setEnabled (false);
+      return;
+    }
+
   ui->in2_decodes_title_label->setText (mirrored
       ? tr ("Band Activity   Input 2   (Input 1, shifted)")
       : tr ("Band Activity   Input 2"));
@@ -5951,8 +6168,237 @@ void MainWindow::reopenAudioDevices (bool output, bool inputs)
 // in the jt9 children, so a figure for the window alone would say nothing about
 // what the second receiver is costing - which is the question this readout
 // exists to answer.
+// Windows can be told the level from anywhere - its own settings, a mixer, the
+// card's own utility - so the sliders are read back rather than remembered. A
+// slider being dragged is left alone: the hand knows better than the poll.
+// The settings say where the server is and whether we talk to it at all.
+void MainWindow::applyReporterSettings ()
+{
+  if (!m_reporter) return;
+  m_reporter->set_identity (m_config.my_callsign (), m_config.my_grid (), wsj_tay_version ());
+  m_reporter->set_sending (m_config.send_to_reporter ());
+  m_reporter->set_base_url (m_config.send_to_reporter () || m_config.input_2_from_reporter ()
+                            ? m_config.reporter_url () : QString {});
+  if (!m_config.input_2_from_reporter ()) m_reporter->follow (QString {});
+}
+
+// A line of our own in the In 2 pane, for the things that are not decodes:
+// a station leaving, a station changing band. The pane must never just stop.
+void MainWindow::noteInPane2 (QString const& text)
+{
+  ui->decodedTextBrowser_in2->insertLineSpacer (text.rightJustified (40, '-'));
+}
+
+// The menu beside Tools is the roster: who is on the air, on what band, and how
+// many messages their last period held. Choosing one feeds the second pane.
+// Nothing here is remembered between sessions - tomorrow that station may not
+// be there, and a stale choice would leave an empty pane with no explanation.
+void MainWindow::rebuildReporterMenu (QVector<ReporterStation> const& stations)
+{
+  m_reporterRoster = stations;
+  // The title carries whose decodes these are and what they are tuned to. A
+  // station retunes without telling anybody, so the title has to follow the
+  // roster rather than be written once when it was chosen.
+  if (m_config.input_2_from_reporter ()) applySecondSource ();
+  auto * menu = ui->menuReporter;
+  menu->clear ();
+
+  auto const following = m_reporter ? m_reporter->following () : QString {};
+
+  // This station's code, for whoever may listen to it. Clicking it copies it,
+  // for pasting into a message.
+  if (m_reporter && m_config.send_to_reporter ())
+    {
+      auto const code = m_reporter->my_code ();
+      auto * mine = menu->addAction (tr ("My code: %1   (click to copy)").arg (code));
+      connect (mine, &QAction::triggered, this, [this, code] () {
+          QApplication::clipboard ()->setText (code);
+          showStatusMessage (tr ("MY_NET code %1 copied").arg (code));
+        });
+      menu->addSeparator ();
+    }
+
+  if (!m_config.input_2_from_reporter ())
+    {
+      auto * hint = menu->addAction (tr ("Set Input 2 to MY_NET to listen"));
+      hint->setEnabled (false);
+      menu->addSeparator ();
+    }
+
+  auto * none = menu->addAction (tr ("Nobody"));
+  none->setCheckable (true);
+  none->setChecked (following.isEmpty ());
+  connect (none, &QAction::triggered, this, [this] () {
+      m_reporter->follow (QString {});
+      noteInPane2 (tr (" listening to nobody "));
+      applySecondSource ();
+    });
+  menu->addSeparator ();
+
+  if (stations.isEmpty ())
+    {
+      auto * empty = menu->addAction (tr ("nobody is sharing just now"));
+      empty->setEnabled (false);
+      return;
+    }
+
+  for (auto const& s : stations)
+    {
+      auto const mine = s.call == m_config.my_callsign ();
+      auto const label = tr ("%1   %2 %3   %4 msgs%5")
+        .arg (s.call, -10).arg (s.band).arg (s.mode).arg (s.count)
+        .arg (mine ? tr ("   (this station)") : QString {});
+      auto * act = menu->addAction (label);
+      act->setCheckable (true);
+      act->setChecked (s.call == following);
+      auto const call = s.call;
+      auto const locked = s.locked && !mine;
+      connect (act, &QAction::triggered, this, [this, call, locked] () {
+          QString code;
+          if (locked)
+            {
+              // Asked every time it is chosen, with the last code used this
+              // session already filled in: a station restarted since has a
+              // new one, and only its operator can say what it is.
+              bool ok = false;
+              code = QInputDialog::getText (this, tr ("MY_NET"),
+                                            tr ("Code for %1 - ask its operator:").arg (call),
+                                            QLineEdit::Normal, m_reporter->code_for (call), &ok).trimmed ();
+              if (!ok || code.isEmpty ())
+                {
+                  rebuildReporterMenu (m_reporterRoster);   // put the tick back where it was
+                  return;
+                }
+            }
+          m_reporterBandSaid.clear ();
+          m_reporterDial = 0;
+          m_reporter->follow (call, code);
+          noteInPane2 (tr (" listening to %1 ").arg (call));
+          applySecondSource ();
+        });
+    }
+}
+
+// A period from the station being followed. The frequencies arrive absolute -
+// dial plus offset at that station - and are put back on this station's scale,
+// which is the whole reason they travel that way.
+void MainWindow::showReporterLines (QString const& call, QString const& period, int dial,
+                                    QString const& band, QString const& mode,
+                                    QVector<ReporterLine> const& lines)
+{
+  Q_UNUSED (band);
+  if (!m_config.input_2_from_reporter ()) return;
+
+  // Another band or another mode is no use here and would be worse than
+  // nothing: marks drawn on this waterfall for signals that are not on it.
+  // Said once, not every period.
+  if (dial && dial != m_reporterDial) { m_reporterDial = dial; applySecondSource (); }
+  auto const elsewhere = (dial && qAbs (dial - int (m_freqNominal)) > 3000)
+    || (!mode.isEmpty () && mode != m_mode);
+  if (elsewhere)
+    {
+      auto const what = QString {"%1 %2"}.arg (dial).arg (mode);
+      if (m_reporterBandSaid != what)
+        {
+          m_reporterBandSaid = what;
+          noteInPane2 (tr (" %1 is on %2 %3 - not your band ")
+                       .arg (call).arg (dial / 1000.).arg (mode));
+        }
+      return;
+    }
+  if (!m_reporterBandSaid.isEmpty ())
+    {
+      m_reporterBandSaid.clear ();
+      noteInPane2 (tr (" %1 is back on your band ").arg (call));
+    }
+
+  for (auto const& line : lines)
+    {
+      auto const offset = line.frequency - int (m_freqNominal);
+      if (offset < 0 || offset > 6000) continue;    // outside what this rig hears
+      // Laid out exactly as the decoder lays out its own lines, so it is read
+      // by the same code and shown by the same rules.
+      auto const text = QString {"%1%2%3%4 ~  %5"}
+        .arg (period)
+        .arg (line.snr, 4)
+        .arg (line.dt, 5, 'f', 1)
+        .arg (offset, 5)
+        .arg (line.message);
+      DecodedText decoded {text};
+      ui->decodedTextBrowser_in2->displayDecodedText (decoded, m_config.my_callsign (), m_mode,
+                                                      m_config.DXCC (), m_logBook,
+                                                      m_currentBandPeriod, m_config.ppfx ());
+
+      // Into the period's book as the second source, keyed the same way the
+      // local decoders are. Without this the count says In 2: 0 with a full
+      // pane beside it, and - the part that matters - no green marks: the
+      // blind spot of a receiver in another town is exactly what one is
+      // borrowed for.
+      // The later passes of the sending station arrive after its period has
+      // already been summed up here. Such a line is worth showing - it is a
+      // station somebody heard - but reopening the period for it printed a
+      // second summary reading "In 1: 0  In 2: 1".
+      if (m_periodsDone.contains (period)) continue;
+
+      auto key = line.message;
+      key.remove (QRegularExpression {R"((?:\s+\?)?(?:\s+(?:a[0-9]|q[0-9][0-9*]?))?\s*$)"});
+      key.remove (QChar {'<'}).remove (QChar {'>'});
+      if (!key.isEmpty ())
+        {
+          auto * const tally = tallyFor (period);
+          tally->keys2Freq.insert (key, offset);
+          // A period arrives from the network whole, not in passes of its own.
+          tally->done2 = true;
+          m_lastPeriod2 = period;
+        }
+    }
+  flushTallies ();
+}
+
+void MainWindow::refreshVolumeSliders ()
+{
+  struct { QSlider * slider; QString device; } const pair[] = {
+    {ui->volSlider_1, m_config.audio_input_device ().deviceName ()},
+    {ui->volSlider_2, secondSourceDevice ().deviceName ()}};
+
+  for (auto const& p : pair)
+    {
+      if (p.slider->isSliderDown ()) continue;
+      if (device_passes_audio_through (p.device))
+        {
+          // A virtual cable. It will take a level and ignore it, so say so
+          // rather than leave a slider to be dragged for nothing.
+          p.slider->setEnabled (false);
+          p.slider->setToolTip (tr ("This source arrives through a virtual cable, which carries "
+                                    "audio through untouched and ignores any level set on it. "
+                                    "Set the level in the program that produces the audio."));
+          continue;
+        }
+      auto const level = capture_volume_percent (p.device);
+      if (level < 0)
+        {
+          // No such card, or a driver with no volume control of its own. A
+          // slider that cannot move anything should not pretend it can.
+          p.slider->setEnabled (false);
+          p.slider->setToolTip (tr ("This card's driver offers no recording level to set."));
+          continue;
+        }
+      p.slider->setEnabled (true);
+      p.slider->setToolTip (tr ("Windows recording level of this card. It is the same level the "
+                                "sound settings show, so it changes there too, and for every "
+                                "other program using the card."));
+      if (p.slider->value () != level)
+        {
+          auto const blocked = p.slider->blockSignals (true);
+          p.slider->setValue (level);
+          p.slider->blockSignals (blocked);
+        }
+    }
+}
+
 void MainWindow::updateResourceUsage ()
 {
+  refreshVolumeSliders ();
   QVector<qint64> const ours {QCoreApplication::applicationPid (),
                               proc_jt9.processId (),
                               proc_jt9_2.processId ()};
@@ -6227,7 +6673,7 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
         }
         m_decoder2Busy = false;
         m_decoder2BusySince = 0;
-        emitPeriodSummary ();
+        noteSourceFinished (true);
         continue;
       }
       m_bDecoded =  line_read.mid(20).trimmed().toInt() > 0;
@@ -6241,8 +6687,9 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
         if(m_nDecodes==0) ndecodes_label.setText("0");
       }
       decodeDone ();
+      reportProgress ();          // share what this pass found, without waiting
       // Only the final pass of the period ends it; FT8 decodes three times.
-      if (m_ihsym >= m_hsymStop) { m_dec1Done = true; emitPeriodSummary (); }
+      if (m_ihsym >= m_hsymStop) noteSourceFinished (false);
       return;
     } else {
       if (!secondary) {
@@ -6330,21 +6777,25 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
         auto const period = line_read.left (6);
         if (period != m_dedupePeriod)
           {
-            m_keys1.clear ();
-            m_keys2.clear ();
             m_actedOn.clear ();
-            m_dec1Done = false;
             m_dedupePeriod = period;
-            // The marks keep one period of history behind the current one, so a
-            // slot does not go blank the moment a new period starts and its
-            // decodes have not arrived yet.
-            m_keys2Freq.clear ();
           }
+        auto const period_text = QString::fromLatin1 (period);
+        // Flushing can remove entries, so settle the older periods first and
+        // only then take a pointer to this one.
+        noteSourceMovedOn (period_text, secondary);
+        auto * const tally = tallyFor (period_text);
+        (secondary ? m_lastPeriod2 : m_lastPeriod1) = tally->period;
         // Strip the decoder's own hints, a1/q0 and a trailing ?, which say how
         // a message was recovered rather than what it says. The two decoders
         // often recover the same message by different routes, and with the
         // hints in the key those would not match as duplicates.
-        key = decodedtext0.messageWords ().join (QChar {' '}).trimmed ();
+        // The first element is the whole message; the rest are its words over
+        // again, so joining them gave every key twice over. Harmless while both
+        // sources were local and keyed the same way - and fatal the moment a
+        // third form arrived from the network, because then nothing matched
+        // anything and every borrowed line counted as a blind spot.
+        key = decodedtext0.messageWords ().value (0).trimmed ();
         key.remove (QRegularExpression {R"((?:\s+\?)?(?:\s+(?:a[0-9]|q[0-9][0-9*]?))?\s*$)"});
         // A callsign sent as a hash prints inside angle brackets until a
         // decoder has heard it in full, and the two sources resolve them at
@@ -6366,17 +6817,45 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
           {
             if (secondary)
               {
-                m_keys2.insert (key);
-                m_keys2Freq.insert (key, decodedtext0.frequencyOffset ());
+                tally->keys2Freq.insert (key, decodedtext0.frequencyOffset ());
                 // A station both sources heard gives the delay between them
                 // directly. Only counted when the first source got there first,
                 // which is the usual order since it starts decoding earlier.
-                if (m_keys1.contains (key))
-                  recordSourceDelay (decodedtext0.dt () - m_keys1.value (key));
+                if (tally->keys1.contains (key))
+                  recordSourceDelay (decodedtext0.dt () - tally->keys1.value (key));
               }
             else
               {
-                m_keys1.insert (key, decodedtext0.dt ());
+                // Each pass of the decoder finds again what the pass before it
+                // found. The pane knows to show a message once; the report has
+                // to be told, or the same lines travel twice and the operator
+                // at the other end reads the band double.
+                bool const first_time = !tally->keys1.contains (key);
+                tally->keys1.insert (key, decodedtext0.dt ());
+                if (!first_time) { /* already sent with an earlier pass */ }
+                else {
+                // Absolute frequency, so it means the same thing at a station
+                // sitting on another dial.
+                ReporterLine out;
+                // The same dial that is declared to the roster, not the one
+                // frozen at the last band change: the receiving station works
+                // out the offset by subtracting what we declared, so any gap
+                // between the two shifts every line it draws. Measured live at
+                // 55 Hz, on every frequency, in both panes at once.
+                out.frequency = int (m_freqNominal) + decodedtext0.frequencyOffset ();
+                out.snr = decodedtext0.snr ();
+                out.dt = decodedtext0.dt ();
+                // The first element is the whole message; the rest are its
+                // words over again, which joined would send everything twice.
+                // What the pane shows, word for word: the hashed callsigns in
+                // their angle brackets and the decoder's own a1/a9 marks. The
+                // key above is what matching is done on; this is for reading.
+                auto const raw = decodedtext0.string ();
+                auto const tilde = raw.indexOf (QLatin1String {" ~ "});
+                out.message = tilde > 0 ? raw.mid (tilde + 3).trimmed ()
+                                        : decodedtext0.messageWords ().value (0).trimmed ();
+                if (!out.message.isEmpty ()) tally->report1.append (out);
+                }
               }
           }
       }
@@ -6894,9 +7373,9 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
           line_read=line_read.left(22) + " CQ " + line_read.trimmed().mid(22);
           auto p = line_read.lastIndexOf (' ');
           DecodedText FST4W_post {QString::fromUtf8 (line_read.left (p).constData ())};
-          pskPost(FST4W_post);
+          pskPost (FST4W_post, secondary);
         } else {
-          if (stdMsg && okToPost) pskPost(decodedtext);
+          if (stdMsg && okToPost) pskPost (decodedtext, secondary);
         }
         if((m_mode=="JT4" or m_mode=="JT65" or m_mode=="Q65") and
            m_msgAvgWidget!=NULL) {
@@ -7168,8 +7647,15 @@ void MainWindow::auto_sequence (DecodedText const& message, unsigned start_toler
   }
 }
 
-void MainWindow::pskPost (DecodedText const& decodedtext)
+// A spot says "this station, at this locator, heard that signal". Only the
+// first source can honestly say that: it is the one on the aerial here. The
+// second may be a receiver in another town, and reporting what it hears under
+// this callsign puts reception on the map where it never happened - which is
+// the one thing PSK Reporter exists to get right. So the second source is
+// reported only if the operator states that it is at this station.
+void MainWindow::pskPost (DecodedText const& decodedtext, bool secondary)
 {
+  if (secondary && !m_config.spot_input_2_to_psk_reporter ()) return;
   if (m_diskData || !m_config.spot_to_psk_reporter() || decodedtext.isLowConfidence ()
       || (decodedtext.string().contains(m_baseCall) && decodedtext.string().contains(m_config.my_grid().left(4)))) return; // prevent self-spotting when running multiple instances
 
@@ -7457,6 +7943,23 @@ void MainWindow::guiUpdate()
     if(msgLength==0 and !m_tune) on_stopTxButton_clicked();
 
     if(g_iptt==0 and ((m_bTxTime and (fTR < 0.75) and (msgLength>0)) or m_tune)) {
+      // Somebody on our transmit frequency, a moment before we key up. You
+      // cannot hear the station you are sitting on, and two signals in one slot
+      // usually means neither gets decoded - so move to the nearest clear one,
+      // with the same search the Auto button runs. Only when the slot is really
+      // taken, so a clear frequency is left alone, QSO or CQ; and only if the
+      // operator has asked for it.
+      if (!m_tune && m_config.stepAsideBeforeTx () && m_mode != "WSPR"
+          && SpecOp::FOX != m_specOp && busySlots.size () >= 2
+          && !isSlotFree (ui->TxFreqSpinBox->value ()))
+        {
+          auto const was = ui->TxFreqSpinBox->value ();
+          if (setFreeFreq () && ui->TxFreqSpinBox->value () != was)
+            {
+              showStatusMessage (tr ("Someone on %1 Hz - moved to %2")
+                                 .arg (was).arg (ui->TxFreqSpinBox->value ()));
+            }
+        }
       //### Allow late starts
       icw[0]=m_ncw;
       g_iptt = 1;

@@ -2032,6 +2032,26 @@ and DX Grid fields when a 73 or free text message is sent.</string>
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="reporter_send_check_box">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Share what Input 1 hears with other WSJ-TAY stations through MY_NET, and let them share theirs with you.&lt;/p&gt;&lt;p&gt;Only the first receiver is ever sent - the one on the aerial here. Nothing is stored: a station drops off the list a minute and a half after it stops reporting, and lines older than a few minutes are forgotten.&lt;/p&gt;&lt;p&gt;Nobody hears your decodes without your code: it is in the MY_NET menu, made new each time the program starts, and it is yours to give to whoever you like.&lt;/p&gt;&lt;p&gt;To listen to somebody else, set Input 2 to MY_NET, choose the station from the MY_NET menu and type the code its operator gave you.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Share my decodes with MY_&amp;NET</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="psk_reporter_input_2_check_box">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Report what Input 2 hears as well.&lt;/p&gt;&lt;p&gt;Off by default, and it should stay off unless the second receiver is at this station, on your own aerial. PSK Reporter records where a signal was heard: a spot from a receiver somewhere else is filed under your callsign and your locator, which quietly corrupts the propagation picture everybody relies on.&lt;/p&gt;&lt;p&gt;With it off, only Input 1 is reported.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Also spot what Input &amp;2 hears (only if it is at this station)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QCheckBox" name="psk_reporter_tcpip_check_box">
             <property name="toolTip">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Check this option if a reliable connection is needed&lt;/p&gt;&lt;p&gt;Most users do not need this, the default uses UDP which is more efficient. Only check this if you have evidence that UDP traffic from you to PSK Reporter is being lost.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -3830,6 +3850,16 @@ Right click for insert and delete options.</string>
            <string>Misc</string>
           </attribute>
           <layout class="QGridLayout" name="gridLayout_22">
+           <item row="4" column="1">
+            <widget class="QCheckBox" name="cb_stepAsideBeforeTx">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Before each transmission, if another station has been heard on your transmit frequency, move to the nearest clear one.&lt;/p&gt;&lt;p&gt;It is the same search the Auto button does, run for you at the moment it matters: nobody hears the station they are sitting on, and two signals on one frequency usually means neither is decoded.&lt;/p&gt;&lt;p&gt;It moves only when the frequency is actually occupied, so it stays put on a quiet band and through a QSO on a clear slot. Range is set by Wide/Narrow below.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Step aside if someone is on my transmit frequency</string>
+            </property>
+            </widget>
+           </item>
            <item row="0" column="1">
             <widget class="QCheckBox" name="cb_processTailenders">
              <property name="toolTip">

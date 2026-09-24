@@ -123,6 +123,11 @@ public:
   bool id_after_73 () const;
   bool tx_QSY_allowed () const;
   bool spot_to_psk_reporter () const;
+  bool spot_input_2_to_psk_reporter () const;
+  // The second source can be another station's decodes instead of a card.
+  bool input_2_from_reporter () const;
+  bool send_to_reporter () const;
+  QString reporter_url () const;
   bool psk_reporter_band_activity () const;
   bool psk_reporter_enabled () const;
   bool psk_reporter_tcpip () const;
@@ -232,6 +237,7 @@ public:
   bool dbgFile () const;
   bool dbgBoth () const;
   bool autoFreqWide() const;
+  bool stepAsideBeforeTx () const;
   bool autoFreqNarrow() const;
   bool wdResetAnywhere() const;
   double wd_FT8() const ;
