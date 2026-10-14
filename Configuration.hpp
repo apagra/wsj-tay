@@ -203,6 +203,9 @@ public:
   bool highlight_by_mode () const;
   bool highlight_only_fields () const;
   bool include_WAE_entities () const;
+  // A US grid square names a state; show it beside the country.
+  bool GridMap () const;
+  bool GridMapAll () const;
   bool highlight_73 () const;
   void setSpecial_Q65_Pileup();
   void setSpecial_Hound();

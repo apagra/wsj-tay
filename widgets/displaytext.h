@@ -88,6 +88,7 @@ private:
   QString m_watched2;
   bool m_bPrincipalPrefix;
   QString m_CQPriority;
+  bool m_stateFromGrid {false};   // set around one call, not a setting
   QString appendWorkedB4(QString message, QString callsign
                          , QString const& grid, QColor * bg, QColor * fg
                          , LogBook const& logBook, QString const& currentBand

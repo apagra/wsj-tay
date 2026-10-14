@@ -286,6 +286,26 @@
             </property>
            </widget>
           </item>
+          <item row="14" column="0">
+           <widget class="QCheckBox" name="Map_Grid_to_State">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;A grid square names the US state it falls in, so a station sending one can be shown with its state beside the country - for CQ calls and 73s.&lt;/p&gt;&lt;p&gt;Where a square straddles a border, both states are named.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Map Grid locator to U.S. State</string>
+            </property>
+           </widget>
+          </item>
+          <item row="15" column="0">
+           <widget class="QCheckBox" name="Map_All_Messages">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show the state in every message that carries a grid, not only CQ calls and 73s. Needs the box above.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Show U.S. States in messages with grid</string>
+            </property>
+           </widget>
+          </item>
           <item row="4" column="0">
            <widget class="QCheckBox" name="DXCC_check_box">
             <property name="toolTip">

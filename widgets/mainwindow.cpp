@@ -537,6 +537,13 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
 
   // Keep both decoder panes usable on platforms with larger native controls,
   // and reserve additional vertical space for the decoder area.
+  // The panes take the height that is going; the row that holds the In 2 panel
+  // when there is no In 2 column, and the buttons under it, take only theirs.
+  ui->gridLayout_15->setRowStretch (0, 1);
+  ui->gridLayout_15->setRowStretch (1, 0);
+  ui->gridLayout_15->setRowStretch (2, 0);
+  ui->in2_panel_host->setSizePolicy (QSizePolicy::Preferred, QSizePolicy::Maximum);
+
   ui->decodes_splitter->setChildrenCollapsible(false);
   ui->decodes_splitter->setStretchFactor(0, 1);
   ui->decodes_splitter->setStretchFactor(1, 1);
@@ -745,12 +752,17 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   // Sync steers the offset while it is on, so turning it off has to put back
   // what it found, or the second source silently stays aligned to that one
   // station and the control looks as though it did nothing.
+  // Abandon the station being worked without waiting for a QSO to end or a
+  // timeout to clear it: callsign, locator, reports and the Sync target go,
+  // the messages fall back to CQ and the transmitter goes quiet.
+  connect (ui->clearDXButton, &QPushButton::clicked, this, [this] () { clearDX (); });
+
   connect (ui->cbSyncToSelected, &QCheckBox::toggled, this, [this] (bool on) {
       if (on) m_offsetBeforeSync = ui->sbInput2Offset->value ();
       else ui->sbInput2Offset->setValue (m_offsetBeforeSync);
     });
   connect (m_detector2, &Detector::level, this, [this] (float db, float dbmax) {
-      if (!ui) return;
+      if (!ui || m_in2SameCard) return;   // one card: the first source's meter is this one's
       ui->signal_meter_2_widget->setValue (db, dbmax);
       m_level2Db = db;
       m_level2Fresh = true;
@@ -5146,29 +5158,36 @@ void MainWindow::decode()                                       //decode()
         to_jt9(m_ihsym,1,-1);                //Send m_ihsym to jt9[.exe] and start decoding
         decodeBusy(true);
 
+        if (secondSourceActive () && !ui->signal_meter_2_label->isChecked ())
+          {
+            // One card feeding both: give the second decoder the very samples
+            // the first is working on. Two capture streams from one device are
+            // not the same array - Windows hands each program its own copy and
+            // the block boundaries fall elsewhere - which is enough to move a
+            // marginal signal in or out. Measured: same message, same DT to
+            // the millisecond, SNR differing by 1.5 dB on average.
+            auto const kin2 = m_in2SameCard ? dec_data.params.kin : dec_data2.params.kin;
+            dec_data2.params = dec_data.params;
+            dec_data2.params.kin = kin2;
+          }
         if (secondSourceActive () && !m_decoder2Busy
             && !ui->signal_meter_2_label->isChecked ())
           {
-            // The second source shares every decode parameter with the first,
-            // only the samples differ, so take the params wholesale but keep
-            // this source's own sample count.
-            auto const kin2 = dec_data2.params.kin;
-            dec_data2.params = dec_data.params;
-            dec_data2.params.kin = kin2;
             if (auto * to2 = reinterpret_cast<char *> (mem_jt9_2->data ()))
               {
                 mem_jt9_2->lock ();
-                memcpy (to2, (char *) dec_data2.ipc,
+                memcpy (to2, m_in2SameCard ? (char *) dec_data.ipc : (char *) dec_data2.ipc,
                         qMin (mem_jt9_2->size (), static_cast<int> (sizeof (struct dec_data))));
                 auto * dd2 = reinterpret_cast<dec_data_t *> (mem_jt9_2->data ());
-                // Slide this source's samples in time. An SDR arriving through
-                // a browser and a virtual cable is late by its buffering, which
-                // leaves its signals sitting outside the transmission window
-                // the decoder searches, costing sensitivity.
+                // Slide this source's samples in time. A receiver arriving
+                // through a browser and a virtual cable is late by its
+                // buffering, which leaves its signals sitting outside the
+                // transmission window the decoder searches.
                 auto const shift = int (ui->sbInput2Offset->value () * 12000.);
-                if (shift && kin2 > std::abs (shift))
+                if (shift && dec_data2.params.kin > std::abs (shift))
                   {
                     auto * d2 = dd2->d2;
+                    auto const kin2 = dec_data2.params.kin;
                     if (shift > 0)
                       {
                         memmove (d2, d2 + shift, (kin2 - shift) * sizeof (*d2));
@@ -5699,6 +5718,14 @@ void MainWindow::updateSecondSourceMeter ()
   // its buffer here would measure whatever samples were left in it, showing a
   // level for a source that has gone silent, so report zero instead.
   if (!ui) return;
+  if (m_in2SameCard)
+    {
+      // Both decoders are reading one card, so the second meter is the first
+      // one's reading. Showing zero here would say the source had died.
+      ui->signal_meter_2_widget->setValue (m_px, m_pxmax);
+      m_level2Db = m_px;
+      return;
+    }
   if (m_level2Fresh)
     {
       m_level2Fresh = false;
@@ -5718,7 +5745,11 @@ void MainWindow::recordSourceDelay (float delta)
   auto sorted = m_dtDeltas;
   std::sort (sorted.begin (), sorted.end ());
   auto const median = sorted.at (sorted.size () / 2);
-  ui->lblInput2Measured->setText (QString {"%1"}.arg (median, 0, 'f', 2));
+  // Said in words, with its unit: the operator reading this has no one to
+  // read a log for him, and a bare number tells him nothing about what to do.
+  ui->lblInput2Measured->setText (median < 0.
+      ? tr ("In 2 early by  %1 s").arg (-median, 0, 'f', 2)
+      : tr ("In 2 late by  %1 s").arg (median, 0, 'f', 2));
   if (ui->cbSyncToSelected->isChecked () && ui->leSyncCall->text ().trimmed ().isEmpty ()
       && std::abs (median) > 0.05)
     {
@@ -5728,8 +5759,9 @@ void MainWindow::recordSourceDelay (float delta)
       ui->sbInput2Offset->setValue (ui->sbInput2Offset->value () + median / 2.);
       m_dtDeltas.clear ();      // measurements before the change no longer apply
     }
-  ui->lblInput2Measured->setToolTip (tr ("Measured delay of the second source against the first, "
-                                         "from %1 stations both heard. Enter it above to correct it.")
+  ui->lblInput2Measured->setToolTip (tr ("Measured from %1 stations both sources heard. Type it into "
+                                         "the box on the left to correct it, or tick Sync with the "
+                                         "callsign box empty and it is corrected for you.")
                                      .arg (m_dtDeltas.size ()));
 }
 
@@ -5891,10 +5923,12 @@ void MainWindow::emitPeriodSummary (PeriodTally const& tally)
   m_periodsDone.append (tally.period);
   while (m_periodsDone.size () > 8) m_periodsDone.removeFirst ();
 
-  auto const line = QString {"In 1: %1   In 2: %2 "}
-    .arg (tally.keys1.size ()).arg (tally.keys2Freq.size ()).rightJustified (40, '-');
-  ui->decodedTextBrowser->insertLineSpacer (line);
-  ui->decodedTextBrowser_in2->insertLineSpacer (line);
+  // The period's counts used to be printed across both panes as a separator.
+  // They read as an accusation - "the second heard twelve fewer" - when the
+  // two were simply two different views of a band, and the number invited a
+  // comparison that meant nothing without knowing what each source was on.
+  // The bookkeeping above is what this function is for; the decodes now run on
+  // without a line between periods, as they do in the stock program.
 }
 
 
@@ -5997,13 +6031,23 @@ void MainWindow::applySecondSource ()
   auto const device = secondSourceDevice ();
   auto const wanted = device.isNull () ? QString {} : device.deviceName ();
   bool const mirrored = !device.isNull () && m_config.audio_input_2_device ().isNull ();
+  // Mirroring is one card by definition; so is picking the same card twice.
+  m_in2SameCard = !device.isNull ()
+    && (mirrored || device.deviceName () == m_config.audio_input_device ().deviceName ());
 
-  if (wanted != m_secondSourceOpen)
+  // One card feeding both inputs: no second stream at all. The decoder is
+  // handed the first source's own samples, and a second capture of the same
+  // device would only be Windows' other copy of them - measured to disagree
+  // with the first by 1.5 dB on the same message, which moved marginal
+  // signals in and out of the decode.
+  auto const want_stream = m_in2SameCard ? QString {} : wanted;
+  if (want_stream != m_secondSourceOpen)
     {
-      if (device.isNull ())
+      if (want_stream.isEmpty ())
         {
           Q_EMIT stopAudioInputStream2 ();
-          betaLog ("second source off");
+          betaLog (m_in2SameCard ? "second stream not needed - one card feeds both"
+                                 : "second source off");
         }
       else
         {
@@ -6011,10 +6055,11 @@ void MainWindow::applySecondSource ()
                                          , m_downSampleFactor
                                          , mirrored ? m_config.audio_input_channel ()
                                                     : m_config.audio_input_2_channel ());
-          betaLog (QString {"second source on %1%2"}.arg (wanted)
-                   .arg (mirrored ? " (mirroring input 1)" : ""));
+          betaLog (QString {"second source on %1%2%3"}.arg (wanted)
+                   .arg (mirrored ? " (mirroring input 1)" : "")
+                   .arg (m_in2SameCard ? " - fed from input 1's own samples" : ""));
         }
-      m_secondSourceOpen = wanted;
+      m_secondSourceOpen = want_stream;
     }
 
   auto const from_network = m_config.input_2_from_reporter ();
@@ -6027,14 +6072,35 @@ void MainWindow::applySecondSource ()
   // first source to mirror.
   ui->sbInput2Offset->setEnabled (!m_config.audio_input_device ().isNull ());
 
-  // The pane goes when there is nothing to show in it - an empty column of
-  // decodes is not information. The panel underneath stays: the watch boxes and
-  // the readout have nothing to do with the second source, and the controls
-  // that do are greyed, not gone.
-  ui->in2_decodes_title_label->setVisible (on);
-  ui->in2_decodes_headings_label->setVisible (on);
-  ui->decodedTextBrowser_in2->setVisible (on);
-  ui->signal_meter_2_widget->setVisible (on);
+  // The whole column goes when there is nothing to show in it - an empty
+  // stretch of grey between the two panes is not information, and hiding its
+  // parts one by one left the frame holding their width, and left the level
+  // slider standing on its own in the middle. The panel is the exception: the
+  // watch boxes and the readout have nothing to do with the second source, so
+  // it moves to its own row under both panes and comes back when the column
+  // does. The controls that belong to the second source are greyed, not gone.
+  QLayout * const home = on ? static_cast<QLayout *> (ui->L_Left_in2)
+                            : static_cast<QLayout *> (ui->L_In2_PanelHost);
+  if (home->indexOf (ui->in2_panel) < 0)
+    {
+      home->addWidget (ui->in2_panel);
+      // Left where the pane used to start, not smeared across the window: the
+      // empty half of a row of controls reads as something missing.
+      if (home == ui->L_In2_PanelHost && ui->L_In2_PanelHost->count () < 2)
+        ui->L_In2_PanelHost->addStretch (1);
+    }
+  ui->frame_in2->setVisible (on);
+  if (on)
+    {
+      // Shown again after being hidden, a splitter section can come back with
+      // no width at all, which looks exactly like the pane having gone missing.
+      auto sizes = ui->decodes_splitter->sizes ();
+      if (sizes.size () > 2 && sizes[1] < 40)
+        {
+          auto const share = (sizes[0] + sizes[1] + sizes[2]) / 3;
+          ui->decodes_splitter->setSizes ({share, share, share});
+        }
+    }
   if (from_network)
     {
       // Whose ears these are, and what they are tuned to, so it is never a
@@ -6095,17 +6161,12 @@ void MainWindow::checkAudioDevicesChanged ()
            .arg (output_changed ? "output" : "")
            .arg (input_changed ? (output_changed ? " and input" : "input") : ""));
 
-  if (MessageBox::Yes == MessageBox::query_message (
-          this, tr ("Windows sound devices have changed"),
-          tr ("The list of sound devices changed while the program was running - "
-              "a card was added or removed, or the default one was switched.\n\n"
-              "Streams opened before that can be left on the wrong card: transmit "
-              "audio going to the speakers instead of the radio is the usual sign.\n\n"
-              "Re-open the audio now? Only what changed is touched."),
-          QString {}, MessageBox::Yes | MessageBox::No))
-    {
-      reopenAudioDevices (output_changed, input_changed);
-    }
+  // Noted and nothing more. The question used to be put to the operator, but
+  // the list changes for reasons that have nothing to do with the cards in
+  // use - a headset waking, a monitor's speakers appearing, the default being
+  // switched elsewhere - and being asked in the middle of a QSO is worse than
+  // the fault it guards against. reopenAudioDevices() is still here for when
+  // it is wanted.
 }
 
 // Re-open the streams on the cards the settings name, found afresh by name at
@@ -6250,8 +6311,14 @@ void MainWindow::rebuildReporterMenu (QVector<ReporterStation> const& stations)
       // none means "not sending", not "hearing nothing". A dash says that
       // without claiming a silent band.
       auto const heard = s.count ? tr ("%1 msgs").arg (s.count) : tr ("-");
+      // Outside the amateur bands there is no band name to print - somebody on
+      // 27 MHz, say - so the dial itself says where they are. A blank column
+      // reads as a broken line.
+      auto const where = !s.band.isEmpty () ? s.band
+        : s.dial ? QString::number (s.dial / 1.e6, 'f', 3)
+                 : QString {"-"};
       auto const label = tr ("%1   %2 %3   %4%5")
-        .arg (s.call, -10).arg (s.band).arg (s.mode).arg (heard, -8)
+        .arg (s.call, -10).arg (where, -6).arg (s.mode).arg (heard, -8)
         .arg (mine ? tr ("   (this station)") : QString {});
       auto * act = menu->addAction (label);
       act->setCheckable (true);
@@ -6549,6 +6616,9 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
   while (proc->canReadLine()) {
     batch_lines.append(proc->readLine());
   }
+  for (auto const& l : batch_lines) {
+    if (l.size() >= 42 && l.indexOf("<DecodeFinished>") < 0) ++m_rawLines[secondary ? 1 : 0];
+  }
 
   QVector<QByteArray> lines_to_process;
   lines_to_process.reserve(batch_lines.size());
@@ -6616,6 +6686,10 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
     lines_to_process = batch_lines;
   }
 
+  for (auto const& l : lines_to_process) {
+    if (l.size() >= 42 && l.indexOf("<DecodeFinished>") < 0) ++m_keptLines[secondary ? 1 : 0];
+  }
+
   for (auto line_read : lines_to_process) {
     if (m_mode == "FT8" and m_specOp == SpecOp::FOX and m_ActiveStationsWidget != NULL) { // see if we should add this to ActiveStations window
       QString the_line = QString(line_read);
@@ -6665,6 +6739,13 @@ void MainWindow::readFromStdout (QProcess * proc, QString const& sourceTag, bool
 //    qint64 ms = QDateTime::currentMSecsSinceEpoch() % 86400000;
 //    double fTR=float((ms%int(1000.0*m_TRperiod)))/int(1000.0*m_TRperiod);
     if(line_read.indexOf("<DecodeFinished>") >= 0) {
+      {
+        int const i = secondary ? 1 : 0;
+        betaLog (QString {"in %1 pass done: jt9 gave %2 lines, shown %3"}
+                 .arg (i + 1).arg (m_rawLines[i]).arg (m_keptLines[i]));
+        m_rawLines[i] = 0;
+        m_keptLines[i] = 0;
+      }
       if (secondary) {
         // jt9 blocks after every decode until the host acknowledges through
         // ipc[2]; decodeDone does that for the first decoder, and without the
@@ -10034,10 +10115,17 @@ void MainWindow::clearDX ()
 {
   if (m_zdebug) log("clearDX");
   set_dateTimeQSO (-1);
-  // Z
-  //if (m_QSOProgress != CALLING) {
-  //    auto_tx_mode (false);
-  //}
+  // The transmitter goes quiet when a QSO ends, unless the operator has asked
+  // for the opposite. The message selection drops back to CQ a few lines
+  // below, and WSJT-Z left the transmitter on with it, so the program called
+  // CQ by itself after every contact even with Auto CQ unticked - which looks
+  // like a fault rather than a choice. Auto CQ and Auto Call are exactly that
+  // request, and both need the transmitter left on to do their work.
+  if (m_QSOProgress != CALLING
+      && !ui->cbAutoCQ->isChecked () && !ui->cbAutoCall->isChecked ())
+    {
+      auto_tx_mode (false);
+    }
   ui->dxCallEntry->clear ();
   ui->dxGridEntry->clear ();
   // The sync target goes with the QSO: leaving it set would keep the second

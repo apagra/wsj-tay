@@ -8,7 +8,7 @@
 ; installer cannot leave that behind: everything it writes, it removes.
 
 #define AppName    "WSJ-TAY"
-#define AppVersion "v2.1.0"
+#define AppVersion "v2.2.0"
 #define AppPub     "SV1TAY"
 #define AppURL     "https://sv1tay.com"
 #define AppExe     "wsj-tay.exe"
@@ -39,7 +39,7 @@ LicenseFile=stage\WSJ-TAY\COPYING.txt
 InfoBeforeFile=stage\WSJ-TAY\README.txt
 
 OutputDir=.
-OutputBaseFilename={#AppName}-v2.1.0-setup
+OutputBaseFilename={#AppName}-v2.2.0-setup
 SetupIconFile=..\icons\windows-icons\wsj-tay.ico
 UninstallDisplayIcon={app}\bin\{#AppExe}
 UninstallDisplayName={#AppName} {#AppVersion}

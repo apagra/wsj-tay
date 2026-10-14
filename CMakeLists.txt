@@ -1801,6 +1801,8 @@ install (FILES
 install (FILES
   cty.dat
   cty.dat_copyright.txt
+  # Grid square to US state, from WSJT-X; read by AD1CCty at startup.
+  grid.dat
   ## Z
   USState.db
   contrib/Ephemeris/JPLEPH

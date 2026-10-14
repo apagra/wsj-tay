@@ -88,14 +88,6 @@ sources really do share one file and the question "when did the second receiver
 stop hearing anything" has to be answerable afterwards. The tag is never part
 of the message, so the log and the spotting reports are unaffected.
 
-At the end of each period a summary line appears in both panes:
-
-```
---------------------- In 1: 42   In 2: 38 ---------------------
-```
-
-Over a few hours this is the honest answer to "is the second receiver worth it".
-
 **Double clicking works in either pane**, and takes the callsign, the report and
 the frequency from the line you actually clicked — so calling a station from the
 In 2 pane sends the report *that* receiver measured.
@@ -282,54 +274,6 @@ item moved both again; the program's own Special mouse commands help had gone on
 describing the upstream behaviour all the while. Ctrl-click still moves the two
 together, and Shift-click still sets transmit.
 
----
-
-## The Help menu
-
-**Help → WSJ-TAY help** is this document, in a window, and **F1** opens it.
-
-The rest of the menu was cut back to what is true of *this* program. Upstream's
-Release Notes, FT8 DXpedition Mode User Guide, Quick-Start Guide, Local User
-Guide and Download Samples are gone: the first two describe a program and a mode
-this is not being used for, the Quick-Start item was wired to no handler at all
-and did nothing when clicked, and the Local User Guide pointed at a manual this
-install does not ship.
-
-**Help → WSJT-X User Guide (online)** replaces Online User Guide, which — and
-with it F1 — had been opening a 404: WSJT-Z repointed the manual's base URL at
-its groups.io page, where the file upstream builds the name of has never
-existed. It is now a plain link to the published manual, which is where the
-modes and every control this fork did not add are explained.
-
-What stayed is what the licence and good manners ask for:
-
-- **Help → Copyright notice** — the WSJT authors' own notice, which they ask to
-  be displayed prominently in derivative work.
-- **Help → About WSJ-TAY** — rewritten, because upstream's About called itself
-  WSJT-X. It now says what this is, that it is a modified version and by whom,
-  keeps the WSJT project's copyright and its memorial to G4WJS, and states the
-  no-warranty and GPLv3 terms with a link to the licence and a note that anyone
-  given a copy is owed the source.
-- **Help → About WSJT-Z** — gone with the rest. It was the upstream
-  fork's own box, with its mailing list, its download page and a donation
-  link, none of which this program can answer for. Attribution to SQ9FVE stays
-  where the licence asks for it: in About WSJ-TAY and in `AUTHORS`.
-
-## When you change the sound sources in Windows
-
-Change the default playback device in Windows and the stream opened at startup
-can be left pointing at the old card — transmit audio to the speakers while the
-radio gets nothing, curable until now only by restarting.
-
-The device list is checked every few seconds. When it changes the program says
-so and offers to **re-open the audio** on the cards the settings name, looked up
-afresh: it is the startup lookup that goes stale. Never behind the operator's
-back, and never while transmitting or tuning — the question waits for the next
-quiet moment. Only the side that changed is touched, so a moved output costs no
-decodes on the inputs.
-
----
-
 ## MY_NET - borrowing a friend's receiver
 
 Two aerials at one station hear differently; two stations in different towns hear
@@ -369,7 +313,7 @@ there. If they go off the air, the pane says that too.
 ## Stepping aside before transmitting
 
 *Settings → WSJT-Z → Misc → Step aside if someone is on my transmit frequency*,
-on unless you turn it off.
+off unless you ask for it.
 
 You cannot hear the station you are sitting on, and two signals in one slot
 usually means neither is decoded. With this on, the moment before the
@@ -399,6 +343,14 @@ appears in both panes. That is the point of them.
 
 ## Small conveniences
 
+- **US states in the decode line.** An American station that sends a grid square
+  is shown with its state beside the country — `U.S.A. TX`. The table is
+  `grid.dat`, covering the lower 48, Alaska and Hawaii; a square straddling a
+  border names both. On for CQ calls and 73s, and *Settings → General → Show
+  U.S. States in messages with grid* extends it to every message carrying one.
+  It rides on the DXCC display, so that has to be on.
+- **Clear**, beside the *Call* box: forget the station being worked — callsign,
+  locator, both reports and the Sync target — fall back to CQ and go quiet.
 - The title names this fork and the station it belongs to. Attribution to
   SQ9FVE and K1JT lives in Help → About WSJ-TAY and the `AUTHORS` file, which
   is where the licence wants it rather than in the title bar.

@@ -107,13 +107,6 @@ question "when did the second receiver stop hearing anything" has to be
 answerable afterwards. The tag is never part of the message, so the log and the
 spotting reports are unaffected.</p>
 
-<p>At the end of each period a summary line appears in both panes:</p>
-
-<pre>--------------------- In 1: 42   In 2: 38 ---------------------</pre>
-
-<p>Over a few hours this is the honest answer to "is the second receiver worth
-it".</p>
-
 <p><b>Double clicking works in either pane</b>, and takes the callsign, the
 report and the frequency from the line you actually clicked &mdash; so calling a
 station from the In 2 pane sends the report <i>that</i> receiver measured. It
@@ -312,25 +305,6 @@ the two together, and <b>Shift-click</b> still sets transmit.</p>
 
 <hr />
 
-<h2>When you change the sound sources in Windows</h2>
-
-<p>Change the default playback device in Windows - speakers to a virtual cable,
-say - and the stream this program opened at startup can be left pointing at the
-old card. The sign is transmit audio going to the speakers while the radio gets
-nothing, and until now the only cure was to restart.</p>
-
-<p>The list of sound devices is checked every few seconds. When it changes, the
-program says so and offers to <b>re-open the audio</b> on the cards your settings
-name, looked up afresh at that moment - which is the point, since it is the
-lookup made at startup that went stale.</p>
-
-<p>Nothing is reopened behind your back, and never while you are transmitting or
-tuning: if the cards change mid-transmission, the question waits for the next
-quiet moment. Only the side that changed is touched, so an output that moved does
-not cost you a period of decodes on the inputs.</p>
-
-<hr />
-
 <h2>MY_NET - borrowing another station's ears</h2>
 
 <p>Two receivers on different aerials hear different things; two receivers in
@@ -378,7 +352,7 @@ go off the air, the pane says that too.</p>
 <h2>Stepping aside before transmitting</h2>
 
 <p><i>Settings &gt; WSJT-Z &gt; Misc &gt; Step aside if someone is on my
-transmit frequency</i>, on unless you turn it off.</p>
+transmit frequency</i>, off unless you ask for it.</p>
 
 <p>You cannot hear the station you are sitting on, and two signals in one slot
 usually means neither is decoded. With this on, the moment before the
@@ -411,6 +385,19 @@ still appears in both panes. That is the point of them.</p>
 <h2>Small conveniences</h2>
 
 <ul>
+<li><b>US states in the decode line.</b> An American station that sends a grid
+square is shown with its state beside the country - <tt>U.S.A. TX</tt> - because
+a square names the state it falls in. The table is <tt>grid.dat</tt>, which
+covers the lower 48, Alaska and Hawaii; a square straddling a border names both
+states. On for CQ calls and 73s; <i>Settings &gt; General &gt; Show U.S. States
+in messages with grid</i> extends it to every message that carries one, and
+<i>Map Grid locator to U.S. State</i> beside it turns the whole thing off. It
+needs <i>Show DXCC, grid, and worked-before status</i> switched on, since that
+is the part of the line it joins.</li>
+<li><b>Clear</b>, beside the <b>Call</b> box, forgets the station being worked:
+callsign, locator, the reports both ways and the Sync target. The messages fall
+back to CQ and the transmitter goes quiet. The same happens by itself when a
+QSO is logged.</li>
 <li><b>Tools &gt; Windows sound settings</b> opens the Windows Sound dialog
 straight on the Recording or the Playback tab, so the level of a card can be set
 without hunting through Windows' own settings. MSHV does exactly the same.</li>
@@ -527,13 +514,6 @@ CPU και μνήμη.</p>
 παράθυρο το λέει. Στο <b>ALL.TXT</b> μπαίνει, <tt>in=1</tt> ή <tt>in=2</tt>,
 γιατί εκεί οι δύο πηγές γράφουν στο ίδιο αρχείο και πρέπει να μπορείς να βρεις
 εκ των υστέρων πότε σταμάτησε να ακούει ο δεύτερος δέκτης.</p>
-
-<p>Στο τέλος κάθε περιόδου μπαίνει σύνοψη και στα δύο παράθυρα:</p>
-
-<pre>--------------------- In 1: 42   In 2: 38 ---------------------</pre>
-
-<p>Μετά από μερικές ώρες, αυτό είναι η ειλικρινής απάντηση στο &laquo;αξίζει ο
-δεύτερος δέκτης;&raquo;.</p>
 
 <p><b>Το διπλό κλικ δουλεύει και στα δύο παράθυρα</b>, και παίρνει callsign,
 report και συχνότητα από τη γραμμή που πάτησες &mdash; άρα καλώντας από το
@@ -680,26 +660,6 @@ Settings &gt; General.</p>
 
 <hr />
 
-<h2>Όταν αλλάξεις τις πηγές ήχου από τα Windows</h2>
-
-<p>Αλλάζεις την προεπιλεγμένη συσκευή αναπαραγωγής στα Windows &mdash; από τα
-ηχεία σε εικονικό καλώδιο, ας πούμε &mdash; και η ροή που άνοιξε το πρόγραμμα
-στην εκκίνηση μπορεί να μείνει κολλημένη στην παλιά κάρτα. Το σημάδι είναι ότι
-η εκπομπή φεύγει στα ηχεία και το ραδιόφωνο δεν παίρνει τίποτα· μέχρι τώρα η
-μόνη λύση ήταν επανεκκίνηση.</p>
-
-<p>Η λίστα των συσκευών ελέγχεται κάθε λίγα δευτερόλεπτα. Όταν αλλάξει, το
-πρόγραμμα σου το λέει και προσφέρεται να <b>ξανανοίξει τον ήχο</b> στις κάρτες
-που λένε οι ρυθμίσεις σου, ψάχνοντάς τες εκείνη τη στιγμή &mdash; εκεί ήταν το
-πρόβλημα, στην αναζήτηση της εκκίνησης που είχε μπαγιατέψει.</p>
-
-<p>Τίποτα δεν ξανανοίγει στα κρυφά, και ποτέ όσο εκπέμπεις ή κάνεις tune: αν η
-αλλαγή συμβεί στη μέση εκπομπής, η ερώτηση περιμένει την πρώτη ήσυχη στιγμή.
-Πειράζεται μόνο η πλευρά που άλλαξε, οπότε μια έξοδος που κουνήθηκε δεν σου
-κοστίζει μια περίοδο από decode στις εισόδους.</p>
-
-<hr />
-
 <h2>MY_NET &mdash; δανείζεσαι τα αυτιά άλλου σταθμού</h2>
 
 <p>Δύο δέκτες σε διαφορετικές κεραίες ακούνε διαφορετικά πράγματα&middot; δύο
@@ -749,7 +709,7 @@ mode, και πόσα μηνύματα είχε η τελευταία τους �
 <h2>Βήμα στο πλάι πριν την εκπομπή</h2>
 
 <p><i>Settings &gt; WSJT-Z &gt; Misc &gt; Step aside if someone is on my
-transmit frequency</i>, αναμμένο εκτός αν το σβήσεις.</p>
+transmit frequency</i>, σβηστό εκτός αν το ζητήσεις.</p>
 
 <p>Δεν ακούς τον σταθμό πάνω στον οποίο κάθεσαι, και δύο σήματα στην ίδια θέση
 συνήθως σημαίνει ότι δεν αποκωδικοποιείται κανένα. Με αυτό ανοιχτό, τη στιγμή
@@ -779,6 +739,20 @@ transmit frequency</i>, αναμμένο εκτός αν το σβήσεις.</p
 <h2>Μικρές ευκολίες</h2>
 
 <ul>
+<li><b>Πολιτείες ΗΠΑ στη γραμμή του decode.</b> Αμερικανικός σταθμός που στέλνει
+locator εμφανίζεται με την πολιτεία του δίπλα στη χώρα &mdash; <tt>U.S.A. TX</tt>
+&mdash; γιατί το τετραγωνίδιο λέει πού πέφτει. Ο πίνακας είναι το
+<tt>grid.dat</tt> και καλύπτει τις 48 πολιτείες, την Αλάσκα και τη Χαβάη&middot;
+τετραγωνίδιο που πατάει σε δύο πολιτείες τις λέει και τις δύο. Ισχύει στα CQ και
+στα 73&middot; το <i>Settings &gt; General &gt; Show U.S. States in messages with
+grid</i> το επεκτείνει σε κάθε μήνυμα με locator, και το <i>Map Grid locator to
+U.S. State</i> δίπλα του το σβήνει τελείως. Θέλει αναμμένο το <i>Show DXCC,
+grid, and worked-before status</i>, γιατί σε εκείνο το κομμάτι της γραμμής
+μπαίνει.</li>
+<li><b>Clear</b>, δίπλα στο κουτί <b>Call</b>: ξεχνάει τον σταθμό που δουλεύεις
+&mdash; callsign, locator, τα report και από τις δύο μεριές, και τον στόχο του
+Sync. Τα μηνύματα γυρίζουν στο CQ και η εκπομπή σβήνει. Το ίδιο γίνεται μόνο του
+όταν καταγράφεται το QSO.</li>
 <li><b>Tools &gt; Windows sound settings</b>: ανοίγει το παράθυρο Ήχου των
 Windows κατευθείαν στην καρτέλα Εγγραφή ή Αναπαραγωγή.</li>
 <li>Το πρόγραμμα ονομάζεται <tt>wsj-tay</tt>, οπότε έχει δικές του ρυθμίσεις και

@@ -924,7 +924,17 @@ private:
   NonInheritingProcess proc_jt9_2;  // decoder for the second receive source
   // jt9 is handed work through its shared memory and must not be given more
   // until it reports finished, which is what decodeBusy does for the first one
+  // Both inputs on one card: the second decoder is then fed the first
+  // source's own samples, not a second stream's copy of them.
+  bool m_in2SameCard {false};
   bool m_decoder2Busy {false};
+  // MEASURING: per source, what the decoder handed over and what was
+  // shown, to tell a decoder that finds less from a pane that shows less.
+  int m_rawLines[2] {0, 0};
+  int m_keptLines[2] {0, 0};
+  // A pass the second decoder was not free to take, kept whole - samples
+  // and all - until it is. A flag alone would not do: by the time it
+  // answers, the live buffer has begun filling with the next period.
   // When that work was handed over. A decode that never reports back would
   // otherwise leave the flag above raised for the rest of the session, and the
   // second source goes quiet with nothing to show for it.

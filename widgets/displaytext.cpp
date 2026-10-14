@@ -423,6 +423,15 @@ QString DisplayText::appendWorkedB4 (QString message, QString call, QString cons
           }
 
           extra += countryName;
+
+          // A US grid square names a state, and grid.dat says which. Shown
+          // beside the country, as WSJT-X does it; WSJT-Z had dropped this on
+          // its way here. "**" means the square is not in the table.
+          if (m_stateFromGrid && grid.size () >= 4 && looked_up.primary_prefix == "K")
+            {
+              auto const& state = logBook.countries ()->findState (grid);
+              if (state.size () && state != "**") extra += QChar {' '} + state;
+            }
         }
     }
     m_CQPriority=DecodeHighlightingModel::highlight_name(top_highlight);
@@ -528,8 +537,13 @@ void DisplayText::displayDecodedText(DecodedText const& decodedText, QString con
           // if enabled add the DXCC entity and B4 status to the end of the
           // preformated text line t1
           auto currentMode = mode;
+          // CQ calls and 73s carry a grid worth naming a state for; every
+          // other message only when the operator has asked for all of them.
+          m_stateFromGrid = m_config->GridMap ()
+            && (CQcall || is_73 || m_config->GridMapAll ());
           message = appendWorkedB4 (message, dxCall, dxGrid, &bg, &fg
                                     , logBook, currentBand, currentMode, extra);
+          m_stateFromGrid = false;
         }
       else
         {

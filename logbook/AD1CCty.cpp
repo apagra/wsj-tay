@@ -29,6 +29,59 @@ using namespace boost::multi_index;
 namespace
 {
   auto const file_name = "cty.dat";
+
+  // Grid to US state, read from grid.dat at startup. Twenty-five two-letter
+  // grid prefixes is more than the United States needs, and a hundred is the
+  // whole range of the two digits that follow.
+  int const max_grid_prefix = 25;
+  int const max_grid_index = 100;
+  auto const grid_file_name = "grid.dat";
+  QString grid_prefix[max_grid_prefix];
+  QString grid_state[max_grid_prefix][max_grid_index];
+  int grid_prefixes_read = 0;
+
+  // grid.dat reads:
+  //     EN<
+  //         50:MN,
+  //         51:MN>
+  // a prefix, then its two-digit indexes each naming a state, the last of the
+  // block closing with '>'.
+  void load_grid_states (QString const& path)
+  {
+    for (int i = 0; i < max_grid_prefix; ++i)
+      for (int j = 0; j < max_grid_index; ++j)
+        grid_state[i][j] = "**";
+    grid_prefixes_read = 0;
+
+    QFile file {path};
+    if (!file.open (QFile::ReadOnly))
+      {
+        LOG_INFO (QString {"No grid.dat at %1 - US states will not be shown"}.arg (path));
+        return;
+      }
+    QTextStream in {&file};
+    while (!in.atEnd ())
+      {
+        auto const& line = in.readLine ();
+        if (line.isEmpty () || !line.contains ('<')) continue;
+        if (grid_prefixes_read >= max_grid_prefix) break;
+        grid_prefix[grid_prefixes_read++] = line.split ('<')[0].trimmed ();
+        while (!in.atEnd ())
+          {
+            auto const& entry = in.readLine ();
+            if (entry.size () < 2 || !entry.contains (':')) continue;
+            auto const& parts = entry.split (':');
+            auto const index = parts[0].trimmed ().toInt ();
+            if (index < 0 || index >= max_grid_index) continue;
+            bool const last = entry.contains ('>');
+            auto const& state = parts[1].split (last ? '>' : ',')[0].trimmed ();
+            grid_state[grid_prefixes_read - 1][index] = state;
+            if (last) break;
+          }
+      }
+    LOG_INFO (QString {"Loaded grid.dat from %1, %2 grid prefixes"}
+              .arg (path).arg (grid_prefixes_read));
+  }
 }
 
 struct entity
@@ -404,7 +457,28 @@ AD1CCty::AD1CCty (Configuration const * configuration)
   // speed up startup. Not urgent as it takes less than 0.5s on a Core
   // i7 reading BIG CTY.DAT.
   AD1CCty::reload (configuration);
+
+  // The grid-to-state table lives beside cty.dat and is read the same way: a
+  // copy the operator has put in his own data folder wins over the installed one.
+  QDir const writeable {QStandardPaths::writableLocation (QStandardPaths::DataLocation)};
+  load_grid_states (writeable.exists (grid_file_name)
+                    ? writeable.absoluteFilePath (grid_file_name)
+                    : configuration->data_dir ().absoluteFilePath (grid_file_name));
   }
+
+QString AD1CCty::findState (QString const& grid) const
+{
+  if (grid.size () < 4) return "**";
+  auto const& prefix = grid.left (2).toUpper ();
+  bool ok {false};
+  auto const index = grid.mid (2, 2).toInt (&ok);
+  if (!ok || index < 0 || index >= max_grid_index) return "**";
+  for (int i = 0; i < grid_prefixes_read; ++i)
+    {
+      if (grid_prefix[i] == prefix) return grid_state[i][index];
+    }
+  return "**";
+}
 
 void AD1CCty::reload(Configuration const * configuration)
 {

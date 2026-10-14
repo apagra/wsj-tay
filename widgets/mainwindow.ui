@@ -25,6 +25,16 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout_15">
     <item row="1" column="0">
+     <widget class="QWidget" name="in2_panel_host">
+      <layout class="QHBoxLayout" name="L_In2_PanelHost">
+       <property name="leftMargin"><number>0</number></property>
+       <property name="topMargin"><number>0</number></property>
+       <property name="rightMargin"><number>0</number></property>
+       <property name="bottomMargin"><number>0</number></property>
+      </layout>
+     </widget>
+    </item>
+    <item row="2" column="0">
      <layout class="QHBoxLayout" name="L_Buttons" stretch="0,2,2,2,2,2,0,2,2,2,2,0,1,0">
       <item>
        <widget class="QCheckBox" name="cbCQonly">
@@ -1347,6 +1357,7 @@ QLabel[oob=&quot;true&quot;] {
             </layout>
           </item>
           <item>
+           <widget class="QWidget" name="in2_panel">
            <layout class="QGridLayout" name="L_In2_Panel">
             <property name="horizontalSpacing"><number>6</number></property>
             <property name="verticalSpacing"><number>3</number></property>
@@ -1411,10 +1422,10 @@ QLabel[oob=&quot;true&quot;] {
             <item row="0" column="4">
              <widget class="QLabel" name="lblInput2Measured">
               <property name="text">
-               <string>--</string>
+               <string>In 2 late by  --</string>
               </property>
               <property name="toolTip">
-               <string>Measured delay of the second source against the first, taken from stations both of them heard.</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;How far behind Input 1 the second source is, measured from stations both of them heard - not guessed.&lt;/p&gt;&lt;p&gt;A receiver arriving through a browser and a virtual cable is late by its buffering, and signals that sit outside the window the decoder searches are lost. Type this number into the box on the left to correct it, or tick Sync with the callsign box empty and it is corrected for you as it changes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignHCenter|Qt::AlignVCenter</set>
@@ -1490,6 +1501,7 @@ QLabel[oob=&quot;true&quot;] {
              </layout>
             </item>
            </layout>
+           </widget>
           </item>
          </layout>
         </item>
@@ -5099,6 +5111,19 @@ list. The list can be maintained in Settings (F2).</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="clearDXButton">
+              <property name="maximumSize">
+               <size><width>60</width><height>16777215</height></size>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Forget the station being worked: callsign, locator, the reports sent and received, and the Sync target. The messages go back to CQ and the transmitter goes quiet.&lt;/p&gt;&lt;p&gt;The same thing happens by itself when a QSO is logged.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Clear</string>
               </property>
              </widget>
             </item>

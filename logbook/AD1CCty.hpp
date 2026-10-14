@@ -45,6 +45,9 @@ public:
   void reload(Configuration const * configuration);
   ~AD1CCty ();
   Record lookup (QString const& call) const;
+  // The US state a grid square falls in, or "**" where it is not a US
+  // grid at all. From grid.dat; a square straddling a border names both.
+  QString findState (QString const& grid) const;
   QString version () const;
   Q_SIGNAL void cty_loaded (QString const& version) const;
 
